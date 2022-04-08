@@ -23,8 +23,13 @@ classDiagram
         +splitTextBytes(msg, size)
     }
     
-    class TUI {
+    class TUI{
         +sendMessage(msg)
+    }
+    
+    class TUIReader{
+        +run()
+        +parseInput(input)
     }
     
     class Forwarding{
@@ -43,4 +48,5 @@ classDiagram
     MyProtocol *-- TUI
     MyProtocol *-- Forwarding
     MyProtocol <|-- receiveThread
+    TUI *-- TUIReader
 ```
