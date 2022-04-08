@@ -4,6 +4,7 @@ classDiagram
     
     class MyProtocol {
         +MyProtocol()
+        +main(args)
     }
     
     class MediumAccessControl{
@@ -17,11 +18,7 @@ classDiagram
         +areWeSending(mediumState, localQueueLength)
     }
     
-    class Reliable_Data_Transfer{
-    
-    }
-    
-    class Text_Split{
+    class TextSplit{
         +textToBytes(msg)
         +splitTextBytes(msg, size)
     }
@@ -35,12 +32,14 @@ classDiagram
     }
     
     class receiveThread{
-    
+        +receiveThread()
+        +printByBuffer()
+        +run()
     }
     
     MyProtocol *-- MediumAccessControl
-    MyProtocol *-- Reliable_Data_Transfer
-    MyProtocol *-- Text_Split
+    MyProtocol *-- TextSplit
     MyProtocol *-- TUI
     MyProtocol *-- Forwarding
+    MyProtocol <|-- receiveThread
 ```
