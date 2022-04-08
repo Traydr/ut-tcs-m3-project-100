@@ -28,7 +28,8 @@ classDiagram
     }
     
     class Forwarding{
-    
+        +init()
+        +pathfinding(forwardingTable)
     }
     
     class receiveThread{
