@@ -42,8 +42,6 @@ public class MyProtocol {
             while (!quit) {
                 input = console.nextLine(); // read input
                 quit = inputParser(input);
-
-
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -54,9 +52,21 @@ public class MyProtocol {
         String[] parsedInput = input.split(" ");
         switch (parsedInput[0].toLowerCase()) {
             case "quit":
+                printMsg("Quiting!");
                 return true;
             case "chat":
-                byte[] inputBytes = input.getBytes(); // get bytes from input
+                if (parsedInput.length == 0) {
+                    printErr("No message to send");
+                }
+
+                // Reassemble message
+                StringBuilder chat = new StringBuilder();
+                for (int i = 1; i < parsedInput.length; i++) {
+                    chat.append(parsedInput[i]).append(" ");
+                }
+
+                // Send message
+                byte[] inputBytes = chat.toString().getBytes(); // get bytes from input
                 // make a new byte buffer with the length of the
                 ByteBuffer toSend = ByteBuffer.allocate(inputBytes.length);
                 // input string
@@ -79,16 +89,24 @@ public class MyProtocol {
                 // TODO call Forwarding
                 break;
             case "help":
-                System.out.println("Commands:" +
-                                   "\n\tchat - Send messages to others" +
-                                   "\n\tlist - Show participants in the network" +
-                                   "\n\thelp - Show this help message");
+                printMsg("Commands:" +
+                         "\n\tchat - Send messages to others" +
+                         "\n\tlist - Show participants in the network" +
+                         "\n\thelp - Show this help message");
                 break;
             default:
-                System.out.println("Incorrect commands, write 'help' for a list of commands");
+                printErr("Incorrect commands, write 'help' for a list of commands");
                 break;
         }
         return false;
+    }
+
+    private void printErr(String err) {
+        System.out.println("[ERR] " + err);
+    }
+
+    private void printMsg(String msg) {
+        System.out.println(msg);
     }
 
     public static void main(String args[]) {
