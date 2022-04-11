@@ -3,15 +3,14 @@ import java.util.ArrayList;
 
 public class TextSplit {
 
-    public static byte[] textToBytes(String msg){
-        byte[] byteArray = msg.getBytes(StandardCharsets.UTF_8);
-        return byteArray;
+    public byte[] textToBytes(String msg){
+        return msg.getBytes(StandardCharsets.UTF_8);
     }
 
-    public static ArrayList<ArrayList<String>> splitTextBytes(byte[] msg, int size){
-        ArrayList<ArrayList<String>> listOfList = new ArrayList<>();
+    public ArrayList<ArrayList<Byte>> splitTextBytes(byte[] msg, int size){
+        ArrayList<ArrayList<Byte>> listOfList = new ArrayList<>();
         for(int j = 0; j < msg.length; j += size) {
-            ArrayList pkt = new ArrayList();
+            ArrayList<Byte> pkt = new ArrayList<>();
             int k = j;
             if ( k + size <= msg.length) {
                 for (int i = 0; i < size; i++) {
@@ -29,7 +28,14 @@ public class TextSplit {
         return listOfList;
     }
 
-    public void arrayOfArrayBackToText(ArrayList<ArrayList<String>> msg){
-
+    public String arrayOfArrayBackToText(ArrayList<ArrayList<Byte>> msg){
+        StringBuilder original = new StringBuilder();
+        for (ArrayList<Byte> bytes : msg) {
+            for (Byte aByte : bytes) {
+                String s = new String(new byte[]{aByte}, StandardCharsets.UTF_8);
+                original.append(s);
+            }
+        }
+        return original.toString();
     }
 }
