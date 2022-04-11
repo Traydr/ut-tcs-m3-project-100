@@ -28,25 +28,40 @@ public class MyProtocol {
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
 
-        new Client(
-                SERVER_IP, SERVER_PORT, frequency, receivedQueue,
-                sendingQueue); // Give the client the Queues to use
+        // Give the client the Queues to use
+        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
 
-        new receiveThread(receivedQueue).start(); // Start thread to handle received messages!
+        // Start thread to handle received messages!
+        new receiveThread(receivedQueue).start();
 
         // handle sending from stdin from this thread.
         try {
             Scanner console = new Scanner(System.in);
             String input = "";
-            while (true) {
+            boolean quit = false;
+            while (!quit) {
                 input = console.nextLine(); // read input
+                quit = inputParser(input);
+
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private boolean inputParser(String input) {
+        String[] parsedInput = input.split(" ");
+        switch (parsedInput[0].toLowerCase()) {
+            case "quit":
+                return true;
+            case "chat":
                 byte[] inputBytes = input.getBytes(); // get bytes from input
-                ByteBuffer toSend = ByteBuffer.allocate(
-                        inputBytes.length); // make a new byte buffer with the length of the
+                // make a new byte buffer with the length of the
+                ByteBuffer toSend = ByteBuffer.allocate(inputBytes.length);
                 // input string
-                toSend.put(
-                        inputBytes, 0,
-                        inputBytes.length); // copy the input string into the byte buffer.
+                // copy the input string into the byte buffer.
+                toSend.put(inputBytes, 0, inputBytes.length);
 
                 Message msg;
                 if ((input.length()) > 2) {
@@ -54,13 +69,26 @@ public class MyProtocol {
                 } else {
                     msg = new Message(MessageType.DATA_SHORT, toSend);
                 }
-                sendingQueue.put(msg);
-            }
-        } catch (InterruptedException e) {
-            System.exit(2);
-        } finally {
-
+                try {
+                    sendingQueue.put(msg);
+                } catch (InterruptedException e) {
+                    System.exit(2);
+                }
+                break;
+            case "list":
+                // TODO call Forwarding
+                break;
+            case "help":
+                System.out.println("Commands:" +
+                                   "\n\tchat - Send messages to others" +
+                                   "\n\tlist - Show participants in the network" +
+                                   "\n\thelp - Show this help message");
+                break;
+            default:
+                System.out.println("Incorrect commands, write 'help' for a list of commands");
+                break;
         }
+        return false;
     }
 
     public static void main(String args[]) {
@@ -90,32 +118,31 @@ public class MyProtocol {
             while (true) {
                 try {
                     Message m = receivedQueue.take();
-                    if (m.getType() ==
-                        MessageType.BUSY) { // The channel is busy (A node is sending within our
-                        // detection range)
+                    if (m.getType() == MessageType.BUSY) {
+                        // The channel is busy (A node is sending within our detection range)
                         System.out.println("BUSY");
-                    } else if (m.getType() ==
-                               MessageType.FREE) { // The channel is no longer busy (no nodes are
-                        // sending within our detection range)
+                    } else if (m.getType() == MessageType.FREE) {
+                        // The channel is no longer busy (no nodes are sending within our detection range)
                         System.out.println("FREE");
-                    } else if (m.getType() == MessageType.DATA) { // We received a data frame!
+                    } else if (m.getType() == MessageType.DATA) {
+                        // We received a data frame!
                         System.out.print("DATA: ");
                         printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
-                    } else if (m.getType() ==
-                               MessageType.DATA_SHORT) { // We received a short data frame!
+                    } else if (m.getType() == MessageType.DATA_SHORT) {
+                        // We received a short data frame!
                         System.out.print("DATA_SHORT: ");
                         printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
-                    } else if (m.getType() ==
-                               MessageType.DONE_SENDING) { // This node is done sending
+                    } else if (m.getType() == MessageType.DONE_SENDING) {
+                        // This node is done sending
                         System.out.println("DONE_SENDING");
-                    } else if (m.getType() ==
-                               MessageType.HELLO) { // Server / audio framework hello message.
+                    } else if (m.getType() == MessageType.HELLO) {
+                        // Server / audio framework hello message.
                         // You don't have to handle this
                         System.out.println("HELLO");
                     } else if (m.getType() == MessageType.SENDING) { // This node is sending
                         System.out.println("SENDING");
-                    } else if (m.getType() ==
-                               MessageType.END) { // Server / audio framework disconnect message.
+                    } else if (m.getType() == MessageType.END) {
+                        // Server / audio framework disconnect message.
                         // You don't have to handle this
                         System.out.println("END");
                         System.exit(0);
