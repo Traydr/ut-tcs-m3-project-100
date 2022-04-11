@@ -1,5 +1,7 @@
 import client.MessageType;
 
+import java.util.Random;
+
 public class MediumAccessControl {
     private static final int MAX_TIMEOUT = 6;
     private static final int IDLE_MULTIPLIER = 10;
@@ -41,7 +43,16 @@ public class MediumAccessControl {
             packetsToSend--;
             return MessageType.SENDING;
         }
+/**
+        if (previousMediumState == MessageType.FREE && new Random().nextInt(100) < 37 + IDLE_MULTIPLIER * idleCounter) {
+            sentRTS = true;
+            return MessageType.SENDING;
+        }
 
+        if (sentRTS && previousMediumState == MessageType.FREE) {
+            sentRTS = false;
+        }
+**/
 
 
         return previousMediumState;
