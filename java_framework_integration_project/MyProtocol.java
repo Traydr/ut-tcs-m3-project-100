@@ -55,7 +55,7 @@ public class MyProtocol {
                 printMsg("Quiting!");
                 return true;
             case "chat":
-                if (parsedInput.length == 0) {
+                if (parsedInput.length == 1) {
                     printErr("No message to send");
                 }
 
@@ -132,6 +132,7 @@ public class MyProtocol {
         }
 
         // Handle messages from the server / audio framework
+        @Override
         public void run() {
             while (true) {
                 try {
