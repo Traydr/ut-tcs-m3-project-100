@@ -140,7 +140,8 @@ public class MyProtocol {
                         // The channel is busy (A node is sending within our detection range)
                         System.out.println("BUSY");
                     } else if (m.getType() == MessageType.FREE) {
-                        // The channel is no longer busy (no nodes are sending within our detection range)
+                        // The channel is no longer busy (no nodes are sending within our
+                        // detection range)
                         System.out.println("FREE");
                     } else if (m.getType() == MessageType.DATA) {
                         // We received a data frame!
