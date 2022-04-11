@@ -1,19 +1,8 @@
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-
-import static java.lang.Math.abs;
 
 public class TextSplit {
 
-    public static void main(String[] args) {
-        String test = "i am home";
-        byte[] bytes = textToBytes(test);
-        System.out.println(Arrays.toString(bytes));
-        ArrayList<ArrayList<String>> list = splitTextBytes(bytes, 4);
-        System.out.println(list);
-
-    }
     public static byte[] textToBytes(String msg){
         byte[] byteArray = msg.getBytes(StandardCharsets.UTF_8);
         return byteArray;
@@ -40,7 +29,7 @@ public class TextSplit {
         return listOfList;
     }
 
-//    public void arrayOfArrayBackToText(ArrayList[][] msg){
-//
-//    }
+    public void arrayOfArrayBackToText(ArrayList<ArrayList<String>> msg){
+
+    }
 }
