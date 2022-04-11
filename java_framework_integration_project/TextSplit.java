@@ -1,36 +1,46 @@
-import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 import static java.lang.Math.abs;
 
 public class TextSplit {
 
-    public byte[] textToBytes(String msg){
+    public static void main(String[] args) {
+        String test = "i am home";
+        byte[] bytes = textToBytes(test);
+        System.out.println(Arrays.toString(bytes));
+        ArrayList<ArrayList<String>> list = splitTextBytes(bytes, 4);
+        System.out.println(list);
+
+    }
+    public static byte[] textToBytes(String msg){
         byte[] byteArray = msg.getBytes(StandardCharsets.UTF_8);
         return byteArray;
     }
 
-    public List[][] splitTextBytes(byte[] msg, int size){
-        ArrayList[][] listOfList = new ArrayList[(msg.length/size) + 1][];
-        for(int j = 0; j < msg.length; j += msg.length) {
-            ArrayList pkt[] = new ArrayList[size];
-            if (msg.length - size >= size) {
+    public static ArrayList<ArrayList<String>> splitTextBytes(byte[] msg, int size){
+        ArrayList<ArrayList<String>> listOfList = new ArrayList<>();
+        for(int j = 0; j < msg.length; j += size) {
+            ArrayList pkt = new ArrayList();
+            int k = j;
+            if ( k + size <= msg.length) {
                 for (int i = 0; i < size; i++) {
-                    pkt[i].add(msg[i]);
+                    pkt.add(i, msg[k]);
+                    k++;
                 }
             } else {
-                for (int i = 0; i < abs(msg.length - size); i++){
-                    pkt[i].add(msg[i]);
+                for (int i = 0; i < (msg.length - k); i++){
+                    pkt.add(i, msg[k]);
+                    k++;
                 }
             }
-            listOfList = new ArrayList[][]{pkt};
+            listOfList.add(pkt);
         }
         return listOfList;
     }
 
-    public void arrayOfArrayBackToText(ArrayList[][] msg){
-
-    }
+//    public void arrayOfArrayBackToText(ArrayList[][] msg){
+//
+//    }
 }
