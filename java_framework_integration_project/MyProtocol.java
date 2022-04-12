@@ -23,10 +23,12 @@ public class MyProtocol {
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
+    private MediumAccessControl mediumAccessControl;
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
+        mediumAccessControl = new MediumAccessControl();
 
         // Give the client the Queues to use
         new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
@@ -80,7 +82,11 @@ public class MyProtocol {
                     msg = new Message(MessageType.DATA_SHORT, toSend);
                 }
                 try {
-                    sendingQueue.put(msg);
+                    if(mediumAccessControl.canWeSend(receivedQueue)) {
+                        sendingQueue.put(msg);
+                    } else {
+                        printErr("there has a collision occurred");
+                    }
                 } catch (InterruptedException e) {
                     System.exit(2);
                 }
