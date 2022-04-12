@@ -2,12 +2,15 @@
 classDiagram
     direction LR
     
-    class protocol.MyProtocol {
+    class MyProtocol {
         +protocol.MyProtocol()
         +main(args)
     }
     
-    class protocol.MediumAccessControl{
+    class Packet {
+    }
+    
+    class MediumAccessControl{
         -int MAX_TIMEOUT
         -int IDLE_MULTIPLIER    
         -boolean areWeSending
@@ -18,21 +21,12 @@ classDiagram
         +areWeSending(mediumState, localQueueLength)
     }
     
-    class protocol.TextSplit{
+    class TextSplit{
         +textToBytes(msg)
         +splitTextBytes(msg, size)
     }
     
-    class TUI{
-        +sendMessage(msg)
-    }
-    
-    class TUIReader{
-        +run()
-        +parseInput(input)
-    }
-    
-    class protocol.Forwarding{
+    class Forwarding{
         +init()
         +pathfinding(forwardingTable)
     }
@@ -43,10 +37,8 @@ classDiagram
         +run()
     }
     
-    protocol.MyProtocol *-- protocol.MediumAccessControl
-    protocol.MyProtocol *-- protocol.TextSplit
-    protocol.MyProtocol *-- TUI
-    protocol.MyProtocol *-- protocol.Forwarding
-    protocol.MyProtocol <|-- receiveThread
-    TUI *-- TUIReader
+    MyProtocol *-- MediumAccessControl
+    MyProtocol *-- TextSplit
+    MyProtocol *-- Forwarding
+    MyProtocol <|-- receiveThread
 ```
