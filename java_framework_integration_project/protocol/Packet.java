@@ -45,7 +45,7 @@ public class Packet {
      */
     public int bitExtracted(int binNum, int numBitsShifted, int startingPos){
         // TODO I hate this function - Titas
-        return (((1 << numBitsShifted) - 1) & (binNum >> (startingPos - 1)));
+        return (((1 << numBitsShifted) - 1) & (binNum >> (startingPos)));
     }
 
     /**
@@ -56,13 +56,13 @@ public class Packet {
     public void decode(byte[] msg, MessageType type){
         // TODO Remove the hated func
         if (type == MessageType.DATA) {
-            source = bitExtracted(msg[0], 4, 5);
-            destination = bitExtracted(msg[0], 4, 1);
-            packetType = bitExtracted(msg[1], 2, 1);
+            source = bitExtracted(msg[0], 4, 4);
+            destination = bitExtracted(msg[0], 4, 0);
+            packetType = bitExtracted(msg[1], 2, 0);
             seqNr = msg[2];
         } else if (type == MessageType.DATA_SHORT) {
-            source = bitExtracted(msg[0], 4, 1);
-            destination = bitExtracted(msg[0], 4, 4);
+            source = bitExtracted(msg[0], 4, 4);
+            destination = bitExtracted(msg[0], 4, 0);
             ackNr = msg[1];
         }
     }
