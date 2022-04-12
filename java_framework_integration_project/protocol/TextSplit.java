@@ -1,3 +1,5 @@
+package protocol;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 

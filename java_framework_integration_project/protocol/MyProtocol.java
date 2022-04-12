@@ -1,3 +1,5 @@
+package protocol;
+
 import client.Client;
 import client.Message;
 import client.MessageType;
@@ -86,7 +88,7 @@ public class MyProtocol {
                 }
                 break;
             case "list":
-                // TODO call Forwarding
+                // TODO call protocol.Forwarding
                 break;
             case "help":
                 printMsg("Commands:" +
