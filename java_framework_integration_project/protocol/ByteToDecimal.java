@@ -1,3 +1,5 @@
+package protocol;
+
 import java.math.BigInteger;
 
 public class ByteToDecimal{
