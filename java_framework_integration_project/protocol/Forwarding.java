@@ -1,3 +1,5 @@
+package protocol;
+
 public class Forwarding {
 
     final int NODE_COUNT = 4;
