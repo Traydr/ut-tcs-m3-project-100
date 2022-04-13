@@ -2,7 +2,7 @@ package protocol;
 
 import client.MessageType;
 
-import java.math.BigInteger;
+import java.util.Arrays;
 
 public class Packet {
     private int source;
@@ -11,6 +11,16 @@ public class Packet {
     private int seqNr;
     private int ackNr;
     private byte[] data;
+
+
+    public Packet(){
+        data = new byte[];
+        source = 0;
+        destination = 0;
+        packetType = 0;
+        seqNr = 0;
+        ackNr = 0;
+    }
 
     public int getAckNr() {
         return ackNr;
@@ -60,10 +70,55 @@ public class Packet {
             destination = bitExtracted(msg[0], 4, 0);
             packetType = bitExtracted(msg[1], 2, 0);
             seqNr = msg[2];
+            System.arraycopy(msg, 3, data, 0, msg.length - 3);
         } else if (type == MessageType.DATA_SHORT) {
             source = bitExtracted(msg[0], 4, 4);
             destination = bitExtracted(msg[0], 4, 0);
             ackNr = msg[1];
         }
+    }
+
+    public void setSource(int source) {
+        this.source = source;
+    }
+
+    public void setDestination(int destination) {
+        this.destination = destination;
+    }
+
+    public void setPacketType(int packetType) {
+        this.packetType = packetType;
+    }
+
+    public void setSeqNr(int seqNr) {
+        this.seqNr = seqNr;
+    }
+
+    public void setAckNr(int ackNr) {
+        this.ackNr = ackNr;
+    }
+
+    public void setData(byte[] data) {
+        this.data = data;
+    }
+
+    /**
+     * Adding the decoded stuff back in a new packet
+     * @param type Message type, to account for differences in message size
+     * @return the new packet
+     */
+    public byte[] makePkt(MessageType type) {
+        byte[] pkt = new byte[];
+        if(type == MessageType.DATA) {
+            pkt[0] = (byte) (source << 4 | destination);
+            pkt[1] = (byte) packetType;
+            pkt[2] = (byte) seqNr;
+            System.arraycopy(data, 0, pkt, 4, 28);
+        }
+        if(type == MessageType.DATA_SHORT) {
+            pkt[0] = (byte) (source << 4 | destination);
+            pkt[1] = (byte) ackNr;
+        }
+        return pkt;
     }
 }
