@@ -141,41 +141,56 @@ public class MyProtocol {
             while (true) {
                 try {
                     Message m = receivedQueue.take();
-                    if (m.getType() == MessageType.BUSY) {
-                        // The channel is busy (A node is sending within our detection range)
-                        System.out.println("BUSY");
-                    } else if (m.getType() == MessageType.FREE) {
-                        // The channel is no longer busy (no nodes are sending within our
-                        // detection range)
-                        System.out.println("FREE");
-                    } else if (m.getType() == MessageType.DATA) {
-                        // We received a data frame!
-                        System.out.print("DATA: ");
-                        String message = new String(m.getData().array(), StandardCharsets.UTF_8);
-                        System.out.println(message);
-                        printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
-                    } else if (m.getType() == MessageType.DATA_SHORT) {
-                        // We received a short data frame!
-                        System.out.print("DATA_SHORT: ");
-                        printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
-                    } else if (m.getType() == MessageType.DONE_SENDING) {
-                        // This node is done sending
-                        System.out.println("DONE_SENDING");
-                    } else if (m.getType() == MessageType.HELLO) {
-                        // Server / audio framework hello message.
-                        // You don't have to handle this
-                        System.out.println("HELLO");
-                    } else if (m.getType() == MessageType.SENDING) { // This node is sending
-                        System.out.println("SENDING");
-                    } else if (m.getType() == MessageType.END) {
-                        // Server / audio framework disconnect message.
-                        // You don't have to handle this
-                        System.out.println("END");
-                        System.exit(0);
-                    }
+                    messageTypeParser(m);
                 } catch (InterruptedException e) {
                     System.err.println("Failed to take from queue: " + e);
                 }
+            }
+        }
+
+        private void messageTypeParser(Message received) {
+            switch (received.getType()) {
+                case BUSY:
+                    // The channel is busy (A node is sending within our detection range)
+                    System.out.println("BUSY");
+                    break;
+                case FREE:
+                    // The channel is no longer busy (no nodes are sending within our
+                    // detection range)
+                    System.out.println("FREE");
+                    break;
+                case DATA:
+                    // We received a data frame!
+                    System.out.print("DATA: ");
+                    String message = new String(received.getData().array(), StandardCharsets.UTF_8);
+                    System.out.println(message);
+                    printByteBuffer(received.getData(), received.getData().capacity()); //Just print the data
+                    break;
+                case DATA_SHORT:
+                    // We received a short data frame!
+                    System.out.print("DATA_SHORT: ");
+                    printByteBuffer(received.getData(), received.getData().capacity()); //Just print the data
+                    break;
+                case DONE_SENDING:
+                    // This node is done sending
+                    System.out.println("DONE_SENDING");
+                    break;
+                case HELLO:
+                    // Server / audio framework hello message.
+                    // You don't have to handle this
+                    System.out.println("HELLO");
+                    break;
+                case SENDING: // This node is sending
+                    System.out.println("SENDING");
+                    break;
+                case END:
+                    // Server / audio framework disconnect message.
+                    // You don't have to handle this
+                    System.out.println("END");
+                    System.exit(0);
+                    break;
+                default:
+                    break;
             }
         }
     }
