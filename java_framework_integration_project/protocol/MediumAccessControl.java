@@ -1,3 +1,5 @@
+package protocol;
+
 import client.Message;
 import client.MessageType;
 

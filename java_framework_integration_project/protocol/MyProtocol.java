@@ -26,15 +26,19 @@ public class MyProtocol {
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
+    private BlockingQueue<Message> bufferQueue;
     private MediumAccessControl mediumAccessControl;
+    private Packet packet;
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
+        bufferQueue = new LinkedBlockingQueue<Message>();
         mediumAccessControl = new MediumAccessControl();
+        packet = new Packet();
 
         // Give the client the Queues to use
-        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
+        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue, bufferQueue);
 
         // Start thread to handle received messages!
         new receiveThread(receivedQueue).start();
@@ -86,7 +90,22 @@ public class MyProtocol {
                     msg = new Message(MessageType.DATA_SHORT, toSend);
                 }
                 try {
-                    if(mediumAccessControl.canWeSend(receivedQueue)) {
+                    bufferQueue.put(msg);
+                    if(mediumAccessControl.canWeSend(receivedQueue) && bufferQueue.size() > 0) {
+                        byte[] rtsPacketValues;
+                        Packet tmpPck = new Packet();
+                        tmpPck.setSource(5); // TODO change to client's his src
+                        tmpPck.setDestination(0);
+                        tmpPck.setAckNr(0);
+                        rtsPacketValues = tmpPck.makePkt(MessageType.DATA_SHORT);
+
+                        toSend = ByteBuffer.allocate(rtsPacketValues.length);
+                        toSend.put(rtsPacketValues);
+
+                        Message rts;
+                        rts = new Message(MessageType.DATA_SHORT, toSend);
+                        sendingQueue.put(rts);
+                        //wait(1500);
                         sendingQueue.put(msg);
                     } else {
                         printErr("there has a collision occurred");
