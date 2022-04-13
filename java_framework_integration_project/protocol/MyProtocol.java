@@ -6,7 +6,7 @@ import client.MessageType;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -123,9 +123,14 @@ public class MyProtocol {
     private class receiveThread extends Thread {
         private BlockingQueue<Message> receivedQueue;
 
+        // Outer integer contains the source address of the packets
+        // Inner integer contains the sequence number of the packets
+        private HashMap<Integer, HashMap<Integer, Packet>> receivedPackets;
+
         public receiveThread(BlockingQueue<Message> receivedQueue) {
             super();
             this.receivedQueue = receivedQueue;
+            this.receivedPackets = new HashMap<>();
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
@@ -138,7 +143,7 @@ public class MyProtocol {
         // Handle messages from the server / audio framework
         @Override
         public void run() {
-            while (true) {
+            while (receivedQueue != null) {
                 try {
                     Message m = receivedQueue.take();
                     messageTypeParser(m);
@@ -162,9 +167,9 @@ public class MyProtocol {
                 case DATA:
                     // We received a data frame!
                     System.out.print("DATA: ");
-                    String message = new String(received.getData().array(), StandardCharsets.UTF_8);
-                    System.out.println(message);
-                    printByteBuffer(received.getData(), received.getData().capacity()); //Just print the data
+                    Packet pck = new Packet();
+                    pck.decode(received.getData().array(), received.getType());
+                    packetParser(pck, received.getType());
                     break;
                 case DATA_SHORT:
                     // We received a short data frame!
@@ -192,6 +197,39 @@ public class MyProtocol {
                 default:
                     break;
             }
+        }
+
+        private void packetParser(Packet pck, MessageType msgType) {
+            if (pck.getPacketType() == 0) {
+                if (receivedPackets.containsKey(pck.getSource())) {
+                    receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
+                } else {
+                    HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
+                    tmpSeqPck.put(pck.getSeqNr(), pck);
+                    receivedPackets.put(pck.getSource(), tmpSeqPck);
+                }
+            } else if (pck.getPacketType() == 1) {
+                // TODO Forwarding
+            } else if (pck.getPacketType() == 2) {
+                String reconstructedMessage = "";
+                ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
+                for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
+                    ArrayList<Byte> tmpArr = new ArrayList<>();
+
+                    for (byte b: tmp.getData()) {
+                        tmpArr.add(b);
+                    }
+                    msgs.add(tmpArr);
+                }
+                TextSplit ts = new TextSplit();
+                reconstructedMessage = ts.arrayOfArrayBackToText(msgs);
+                System.out.println(reconstructedMessage);
+
+                receivedPackets.put(pck.getSource(), new HashMap<>());
+            }
+
+            String message = new String(pck.getData(), StandardCharsets.UTF_8);
+            System.out.println(message);
         }
     }
 }
