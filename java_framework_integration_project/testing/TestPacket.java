@@ -1,7 +1,6 @@
 package testing;
 
 import client.MessageType;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
@@ -24,11 +23,11 @@ public class TestPacket {
         int returnValue;
 
         numToGet = 0xff;
-        returnValue = pck.bitExtracted(numToGet, 8, 1);
+        returnValue = pck.bitExtracted(numToGet, 8, 0);
         assertEquals(numToGet, returnValue);
 
         numToGet = 0x01;
-        returnValue = pck.bitExtracted(numToGet, 1, 1);
+        returnValue = pck.bitExtracted(numToGet, 1, 0);
         assertEquals(numToGet, returnValue);
     }
 
