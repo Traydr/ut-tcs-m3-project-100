@@ -28,6 +28,18 @@ public class Forwarding {
         }
     }
 
+    public byte[] matrixToArray() {
+        byte[] pkt = new byte[16];
+        int count = 0;
+        for (int i = 0; i < NODE_COUNT; i++) {
+            for (int j = 0; j < NODE_COUNT; j++) {
+                pkt[count] = (byte) dataTable[i][j];
+                count++;
+            }
+        }
+        return pkt;
+    }
+
 
 }
 
