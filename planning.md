@@ -3,8 +3,11 @@ classDiagram
     direction LR
     
     class MyProtocol {
-        +MyProtocol()
+        +protocol.MyProtocol()
         +main(args)
+    }
+    
+    class Packet {
     }
     
     class MediumAccessControl{
@@ -23,15 +26,6 @@ classDiagram
         +splitTextBytes(msg, size)
     }
     
-    class TUI{
-        +sendMessage(msg)
-    }
-    
-    class TUIReader{
-        +run()
-        +parseInput(input)
-    }
-    
     class Forwarding{
         +init()
         +pathfinding(forwardingTable)
@@ -45,8 +39,6 @@ classDiagram
     
     MyProtocol *-- MediumAccessControl
     MyProtocol *-- TextSplit
-    MyProtocol *-- TUI
     MyProtocol *-- Forwarding
     MyProtocol <|-- receiveThread
-    TUI *-- TUIReader
 ```

@@ -1,8 +1,11 @@
+package protocol;
+
 import client.Client;
 import client.Message;
 import client.MessageType;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -57,8 +60,9 @@ public class MyProtocol {
                 printMsg("Quiting!");
                 return true;
             case "chat":
-                if (parsedInput.length == 0) {
+                if (parsedInput.length == 1) {
                     printErr("No message to send");
+                    break;
                 }
 
                 // Reassemble message
@@ -92,7 +96,7 @@ public class MyProtocol {
                 }
                 break;
             case "list":
-                // TODO call Forwarding
+                // TODO call protocol.Forwarding
                 break;
             case "help":
                 printMsg("Commands:" +
@@ -138,6 +142,7 @@ public class MyProtocol {
         }
 
         // Handle messages from the server / audio framework
+        @Override
         public void run() {
             while (true) {
                 try {
@@ -152,6 +157,8 @@ public class MyProtocol {
                     } else if (m.getType() == MessageType.DATA) {
                         // We received a data frame!
                         System.out.print("DATA: ");
+                        String message = new String(m.getData().array(), StandardCharsets.UTF_8);
+                        System.out.println(message);
                         printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
                     } else if (m.getType() == MessageType.DATA_SHORT) {
                         // We received a short data frame!
