@@ -166,15 +166,17 @@ public class MyProtocol {
                     break;
                 case DATA:
                     // We received a data frame!
-                    System.out.print("DATA: ");
+                    System.out.println("[RECEIVED] DATA");
                     Packet pck = new Packet();
-                    pck.decode(received.getData().array(), received.getType());
-                    packetParser(pck, received.getType());
+                    pck.decode(received.getData().array(), MessageType.DATA);
+                    packetParser(pck, MessageType.DATA);
                     break;
                 case DATA_SHORT:
                     // We received a short data frame!
-                    System.out.print("DATA_SHORT: ");
-                    printByteBuffer(received.getData(), received.getData().capacity()); //Just print the data
+                    System.out.println("[RECEIVED] DATA_SHORT");
+                    Packet pckShort = new Packet();
+                    pckShort.decode(received.getData().array(), MessageType.DATA_SHORT);
+                    packetParser(pckShort, MessageType.DATA_SHORT);
                     break;
                 case DONE_SENDING:
                     // This node is done sending
@@ -200,6 +202,11 @@ public class MyProtocol {
         }
 
         private void packetParser(Packet pck, MessageType msgType) {
+            if (msgType == MessageType.DATA_SHORT) {
+                // TODO parse data short packets
+                return;
+            }
+
             if (pck.getPacketType() == 0) {
                 if (receivedPackets.containsKey(pck.getSource())) {
                     receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
