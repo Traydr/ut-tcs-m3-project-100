@@ -208,16 +208,11 @@ public class MyProtocol {
             }
 
             if (pck.getPacketType() == 0) {
-                if (receivedPackets.containsKey(pck.getSource())) {
-                    receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
-                } else {
-                    HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
-                    tmpSeqPck.put(pck.getSeqNr(), pck);
-                    receivedPackets.put(pck.getSource(), tmpSeqPck);
-                }
+                addPckToHash(pck);
             } else if (pck.getPacketType() == 1) {
                 // TODO Forwarding
             } else if (pck.getPacketType() == 2) {
+                addPckToHash(pck);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
@@ -237,6 +232,16 @@ public class MyProtocol {
 
             String message = new String(pck.getData(), StandardCharsets.UTF_8);
             System.out.println(message);
+        }
+
+        private void addPckToHash(Packet pck) {
+            if (receivedPackets.containsKey(pck.getSource())) {
+                receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
+            } else {
+                HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
+                tmpSeqPck.put(pck.getSeqNr(), pck);
+                receivedPackets.put(pck.getSource(), tmpSeqPck);
+            }
         }
     }
 }
