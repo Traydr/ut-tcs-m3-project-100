@@ -2,14 +2,13 @@ package protocol;
 
 import client.MessageType;
 
-import static java.lang.Math.abs;
-
 public class Packet {
     private int source;
     private int destination;
     private int packetType;
     private int seqNr;
     private int ackNr;
+    private int dataLen;
     private byte[] data;
 
 
@@ -19,6 +18,7 @@ public class Packet {
         destination = 0;
         packetType = 0;
         seqNr = 0;
+        dataLen = 0;
         ackNr = 0;
     }
 
@@ -46,6 +46,10 @@ public class Packet {
         return data;
     }
 
+    public int getDataLen(){
+        return dataLen;
+    }
+
     /**
      * Gets a number from a certain num of bits
      * @param binNum Number to extract from
@@ -55,6 +59,7 @@ public class Packet {
      */
     public int bitExtracted(int binNum, int numBitsShifted, int startingPos){
         // TODO I hate this function - Titas
+        // TODO too bad - Andreea
         return (((1 << numBitsShifted) - 1) & (binNum >> (startingPos)));
     }
 
@@ -65,10 +70,12 @@ public class Packet {
      */
     public void decode(byte[] msg, MessageType type){
         // TODO Remove the hated func
+        // TODO Haha, we're still using it
         if (type == MessageType.DATA) {
             source = bitExtracted(msg[0], 4, 4);
             destination = bitExtracted(msg[0], 4, 0);
             packetType = bitExtracted(msg[1], 2, 0);
+            dataLen = bitExtracted(msg[1], 6, 2);
             seqNr = msg[2];
             System.arraycopy(msg, 3, data, 0, msg.length - 3);
         } else if (type == MessageType.DATA_SHORT) {
@@ -102,6 +109,10 @@ public class Packet {
         this.data = data;
     }
 
+    public void setDataLen(int dataLen) {
+        this.dataLen = dataLen;
+    }
+
     /**
      * Adding the decoded stuff back in a new packet
      * @param type Message type, to account for differences in message size
@@ -110,11 +121,16 @@ public class Packet {
     public byte[] makePkt(MessageType type) {
         byte[] pkt = new byte[32];
         if(type == MessageType.DATA) {
-            byte sourceDest = (byte) (source << 4 | destination); //we add the source into the byte packet and shift it four bits to add the
+            byte sourceDest = (byte) (source << 4 | destination);//we add the source into the byte packet and shift it four bits to add the
+            byte typeAndData = (byte) (packetType << 6 | dataLen);
             pkt[0] = sourceDest;
-            pkt[1] = (byte) packetType;
+            pkt[1] = typeAndData;
             pkt[2] = (byte) seqNr;
-            System.arraycopy(data, 0, pkt, 4, 28);
+            int j = 0;
+            for(int i = 3; i < 32; i++){
+                pkt[i] = data[j];
+                j++;
+            }
         }
         if(type == MessageType.DATA_SHORT) {
             pkt = new byte[2];

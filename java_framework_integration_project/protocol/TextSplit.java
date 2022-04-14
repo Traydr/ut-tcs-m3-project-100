@@ -16,12 +16,12 @@ public class TextSplit {
             int k = j;
             if ( k + size <= msg.length) {
                 for (int i = 0; i < size; i++) {
-                    pkt.add(i, msg[k]);
+                    pkt.add(msg[k]);
                     k++;
                 }
             } else {
-                for (int i = 0; i < (msg.length - k); i++){
-                    pkt.add(i, msg[k]);
+                for (int i = 0; i < msg.length-29*listOfList.size(); i++){
+                    pkt.add(msg[k]);
                     k++;
                 }
             }
