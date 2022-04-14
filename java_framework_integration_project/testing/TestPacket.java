@@ -47,4 +47,25 @@ public class TestPacket {
         assertEquals(0x00, pck.getPacketType());
         assertEquals(0x01, pck.getSeqNr());
     }
+
+    @Test
+    void makePacketTest(){
+        byte[] msg = new byte[32];
+        byte[] packet;
+        byte sourceDest = (byte) 0xf1;
+        msg[0] = sourceDest;
+        msg[1] = (byte) 0x00;
+        msg[2] = (byte) 0x01;
+        pck.setSource(0x0f); //15
+        pck.setDestination(0x01); //1
+        pck.setPacketType(0x00);
+        pck.setSeqNr(0x01);
+
+        MessageType msgType = MessageType.DATA;
+        packet = pck.makePkt(msgType);
+
+        assertEquals(sourceDest, packet[0]);
+        assertEquals(0x00, packet[1]);
+        assertEquals(0x01, packet[2]);
+    }
 }

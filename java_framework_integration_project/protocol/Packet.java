@@ -110,14 +110,16 @@ public class Packet {
     public byte[] makePkt(MessageType type) {
         byte[] pkt = new byte[32];
         if(type == MessageType.DATA) {
-            pkt[0] = (byte) (source << 4 | destination);
+            byte sourceDest = (byte) (source << 4 | destination); //we add the source into the byte packet and shift it four bits to add the
+            pkt[0] = sourceDest;
             pkt[1] = (byte) packetType;
             pkt[2] = (byte) seqNr;
             System.arraycopy(data, 0, pkt, 4, 28);
         }
         if(type == MessageType.DATA_SHORT) {
             pkt = new byte[2];
-            pkt[0] = (byte) (source << 4 | destination);
+            byte sourceDest = (byte) (source << 4 | destination);
+            pkt[0] = sourceDest;
             pkt[1] = (byte) ackNr;
         }
         return pkt;
