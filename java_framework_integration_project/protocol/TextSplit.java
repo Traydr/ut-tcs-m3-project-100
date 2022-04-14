@@ -20,7 +20,7 @@ public class TextSplit {
                     k++;
                 }
             } else {
-                for (int i = 0; i < (Math.max(msg.length, k)); i++){
+                for (int i = 0; i < msg.length-29*listOfList.size(); i++){
                     pkt.add(msg[k]);
                     k++;
                 }
