@@ -13,8 +13,6 @@ public class Client {
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
-    private BlockingQueue<Message> bufferQueue;
-    private BlockingQueue<Message> stagingQueue;
 
     public void printByteBuffer(ByteBuffer bytes, int bytesLength){
         System.out.print("DATA: ");
@@ -24,11 +22,9 @@ public class Client {
         System.out.println();
     }
 
-    public Client(String server_ip, int server_port, int frequency, BlockingQueue<Message> receivedQueue, BlockingQueue<Message> sendingQueue, BlockingQueue bufferQueue, BlockingQueue stagingQueue){
+    public Client(String server_ip, int server_port, int frequency, BlockingQueue<Message> receivedQueue, BlockingQueue<Message> sendingQueue){
         this.receivedQueue = receivedQueue;
         this.sendingQueue = sendingQueue;
-        this.bufferQueue = bufferQueue;
-        this.stagingQueue = stagingQueue;
         SocketChannel sock;
         Sender sender;
         Listener listener;
