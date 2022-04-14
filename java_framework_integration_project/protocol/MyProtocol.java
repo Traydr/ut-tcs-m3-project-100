@@ -6,7 +6,7 @@ import client.MessageType;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -123,9 +123,14 @@ public class MyProtocol {
     private class receiveThread extends Thread {
         private BlockingQueue<Message> receivedQueue;
 
+        // Outer integer contains the source address of the packets
+        // Inner integer contains the sequence number of the packets
+        private HashMap<Integer, HashMap<Integer, Packet>> receivedPackets;
+
         public receiveThread(BlockingQueue<Message> receivedQueue) {
             super();
             this.receivedQueue = receivedQueue;
+            this.receivedPackets = new HashMap<>();
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
@@ -138,45 +143,100 @@ public class MyProtocol {
         // Handle messages from the server / audio framework
         @Override
         public void run() {
-            while (true) {
+            while (receivedQueue != null) {
                 try {
                     Message m = receivedQueue.take();
-                    if (m.getType() == MessageType.BUSY) {
-                        // The channel is busy (A node is sending within our detection range)
-                        System.out.println("BUSY");
-                    } else if (m.getType() == MessageType.FREE) {
-                        // The channel is no longer busy (no nodes are sending within our
-                        // detection range)
-                        System.out.println("FREE");
-                    } else if (m.getType() == MessageType.DATA) {
-                        // We received a data frame!
-                        System.out.print("DATA: ");
-                        String message = new String(m.getData().array(), StandardCharsets.UTF_8);
-                        System.out.println(message);
-                        printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
-                    } else if (m.getType() == MessageType.DATA_SHORT) {
-                        // We received a short data frame!
-                        System.out.print("DATA_SHORT: ");
-                        printByteBuffer(m.getData(), m.getData().capacity()); //Just print the data
-                    } else if (m.getType() == MessageType.DONE_SENDING) {
-                        // This node is done sending
-                        System.out.println("DONE_SENDING");
-                    } else if (m.getType() == MessageType.HELLO) {
-                        // Server / audio framework hello message.
-                        // You don't have to handle this
-                        System.out.println("HELLO");
-                    } else if (m.getType() == MessageType.SENDING) { // This node is sending
-                        System.out.println("SENDING");
-                    } else if (m.getType() == MessageType.END) {
-                        // Server / audio framework disconnect message.
-                        // You don't have to handle this
-                        System.out.println("END");
-                        System.exit(0);
-                    }
+                    messageTypeParser(m);
                 } catch (InterruptedException e) {
                     System.err.println("Failed to take from queue: " + e);
                 }
             }
+        }
+
+        private void messageTypeParser(Message received) {
+            switch (received.getType()) {
+                case BUSY:
+                    // The channel is busy (A node is sending within our detection range)
+                    System.out.println("BUSY");
+                    break;
+                case FREE:
+                    // The channel is no longer busy (no nodes are sending within our
+                    // detection range)
+                    System.out.println("FREE");
+                    break;
+                case DATA:
+                    // We received a data frame!
+                    System.out.println("[RECEIVED] DATA");
+                    Packet pck = new Packet();
+                    pck.decode(received.getData().array(), MessageType.DATA);
+                    packetParser(pck, MessageType.DATA);
+                    break;
+                case DATA_SHORT:
+                    // We received a short data frame!
+                    System.out.println("[RECEIVED] DATA_SHORT");
+                    Packet pckShort = new Packet();
+                    pckShort.decode(received.getData().array(), MessageType.DATA_SHORT);
+                    packetParser(pckShort, MessageType.DATA_SHORT);
+                    break;
+                case DONE_SENDING:
+                    // This node is done sending
+                    System.out.println("DONE_SENDING");
+                    break;
+                case HELLO:
+                    // Server / audio framework hello message.
+                    // You don't have to handle this
+                    System.out.println("HELLO");
+                    break;
+                case SENDING: // This node is sending
+                    System.out.println("SENDING");
+                    break;
+                case END:
+                    // Server / audio framework disconnect message.
+                    // You don't have to handle this
+                    System.out.println("END");
+                    System.exit(0);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void packetParser(Packet pck, MessageType msgType) {
+            if (msgType == MessageType.DATA_SHORT) {
+                // TODO parse data short packets
+                return;
+            }
+
+            if (pck.getPacketType() == 0) {
+                if (receivedPackets.containsKey(pck.getSource())) {
+                    receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
+                } else {
+                    HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
+                    tmpSeqPck.put(pck.getSeqNr(), pck);
+                    receivedPackets.put(pck.getSource(), tmpSeqPck);
+                }
+            } else if (pck.getPacketType() == 1) {
+                // TODO Forwarding
+            } else if (pck.getPacketType() == 2) {
+                String reconstructedMessage = "";
+                ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
+                for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
+                    ArrayList<Byte> tmpArr = new ArrayList<>();
+
+                    for (byte b: tmp.getData()) {
+                        tmpArr.add(b);
+                    }
+                    msgs.add(tmpArr);
+                }
+                TextSplit ts = new TextSplit();
+                reconstructedMessage = ts.arrayOfArrayBackToText(msgs);
+                System.out.println(reconstructedMessage);
+
+                receivedPackets.put(pck.getSource(), new HashMap<>());
+            }
+
+            String message = new String(pck.getData(), StandardCharsets.UTF_8);
+            System.out.println(message);
         }
     }
 }
