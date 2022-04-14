@@ -83,6 +83,7 @@ public class MyProtocol {
                     makePkt.setSource(5);
                     makePkt.setDestination(2);
                     makePkt.setPacketType(0);
+                    makePkt.setDataLen(data.length);
 
                     int i = 0;
                     ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
@@ -111,7 +112,7 @@ public class MyProtocol {
                     makePkt.setDestination(2);
                     makePkt.setPacketType(2);
                     makePkt.setSeqNr(0);
-
+                    makePkt.setDataLen(data.length);
                     ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
                     for (ArrayList<Byte> pktArrayList : splitBytes) {
                         byte[] temppkt = new byte[29];
@@ -120,6 +121,7 @@ public class MyProtocol {
                             temppkt[k] = b;
                             k++;
                         }
+                        System.out.println(Arrays.toString(temppkt));
                         makePkt.setData(temppkt);
                     }
 

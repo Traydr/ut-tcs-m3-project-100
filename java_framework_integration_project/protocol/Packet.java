@@ -119,15 +119,15 @@ public class Packet {
      * @return the new packet
      */
     public byte[] makePkt(MessageType type) {
-        byte[] pkt = new byte[dataLen+3];
+        byte[] pkt = new byte[32];
         if(type == MessageType.DATA) {
             byte sourceDest = (byte) (source << 4 | destination);//we add the source into the byte packet and shift it four bits to add the
-            byte typeAndData = (byte) (packetType << 2 | dataLen);
+            byte typeAndData = (byte) (packetType << 6 | dataLen);
             pkt[0] = sourceDest;
             pkt[1] = typeAndData;
             pkt[2] = (byte) seqNr;
             int j = 0;
-            for(int i = 3; i < data.length; i++){
+            for(int i = 3; i < 32; i++){
                 pkt[i] = data[j];
                 j++;
             }
