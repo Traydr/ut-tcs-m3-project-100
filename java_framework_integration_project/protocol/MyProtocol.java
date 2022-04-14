@@ -21,8 +21,12 @@ public class MyProtocol {
     private static String SERVER_IP = "netsys.ewi.utwente.nl"; //"127.0.0.1";
     // The port to connect to. 8954 for the simulation server.
     private static int SERVER_PORT = 8954;
+    private static Random random = new Random();
+    private static int myAdress = random.nextInt(14) + 1;
+    private static int step = 0;
     // The frequency to use.
     private static int frequency = 10500;
+    private Forwarding forwardingTable = new Forwarding(myAdress);
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
@@ -43,7 +47,7 @@ public class MyProtocol {
         new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
 
         // Start thread to handle received messages!
-        new receiveThread(receivedQueue).start();
+        new receiveThread(receivedQueue, forwardingTable).start();
 
         // handle sending from stdin from this thread.
         try {
@@ -198,13 +202,14 @@ public class MyProtocol {
         // Outer integer contains the source address of the packets
         // Inner integer contains the sequence number of the packets
         private HashMap<Integer, HashMap<Integer, Packet>> receivedPackets;
+        private Forwarding dataTable;
 
-        public receiveThread(BlockingQueue<Message> receivedQueue) {
+        public receiveThread(BlockingQueue<Message> receivedQueue, Forwarding table) {
             super();
             this.receivedQueue = receivedQueue;
             this.receivedPackets = new HashMap<>();
+            dataTable = table;
         }
-
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
             for (int i = 0; i < bytesLength; i++) {
                 System.out.print(Byte.toString(bytes.get(i)) + " ");
@@ -283,6 +288,7 @@ public class MyProtocol {
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
+            step++;
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
                 return;
@@ -291,7 +297,8 @@ public class MyProtocol {
             if (pck.getPacketType() == 0) {
                 addPckToHash(pck);
             } else if (pck.getPacketType() == 1) {
-                // TODO Forwarding
+
+
             } else if (pck.getPacketType() == 2) {
                 addPckToHash(pck);
                 String reconstructedMessage = "";
@@ -316,8 +323,7 @@ public class MyProtocol {
         }
 
         /**
-         * Adds an input packet to global hashmap. If it doesn't find an available inner hashmap then it creates a new oneL
-         *
+         * Adds an input packet to global hashmap. If it doesn't find an available inner hashmap then it creates a new one
          * @param pck Packet object
          */
         private void addPckToHash(Packet pck) {
