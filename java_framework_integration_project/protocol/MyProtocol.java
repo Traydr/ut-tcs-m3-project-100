@@ -30,10 +30,18 @@ public class MyProtocol {
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
+    private BlockingQueue<byte[]> bufferQueue;
+    private MediumAccessControl mediumAccessControl;
+    private Packet packet;
+    private TextSplit textSplit;
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
+        bufferQueue = new LinkedBlockingQueue<>();
+        mediumAccessControl = new MediumAccessControl();
+        packet = new Packet();
+        textSplit = new TextSplit();
 
         // Give the client the Queues to use
         new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
@@ -72,23 +80,87 @@ public class MyProtocol {
                 for (int i = 1; i < parsedInput.length; i++) {
                     chat.append(parsedInput[i]).append(" ");
                 }
+                byte[] data;
+                data = textSplit.textToBytes(String.valueOf(chat));
+                if (data.length > 29) {
+                    Packet makePkt = new Packet();
+                    makePkt.setSource(5);
+                    makePkt.setDestination(2);
+                    makePkt.setPacketType(0);
+                    makePkt.setDataLen(data.length);
 
-                // Send message
-                byte[] inputBytes = chat.toString().getBytes(); // get bytes from input
-                // make a new byte buffer with the length of the
-                ByteBuffer toSend = ByteBuffer.allocate(inputBytes.length);
-                // input string
-                // copy the input string into the byte buffer.
-                toSend.put(inputBytes, 0, inputBytes.length);
-
-                Message msg;
-                if ((input.length()) > 2) {
-                    msg = new Message(MessageType.DATA, toSend);
+                    int i = 0;
+                    ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
+                    for (ArrayList<Byte> pktArrayList : splitBytes) {
+                        if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
+                            makePkt.setPacketType(2);
+                        }
+                        byte[] temppkt = new byte[29];
+                        int k = 0;
+                        for (byte b : pktArrayList) {
+                            temppkt[k] = b;
+                            k++;
+                        }
+                        makePkt.setData(temppkt);
+                        makePkt.setSeqNr(i);
+                        try {
+                            bufferQueue.put(makePkt.makePkt(MessageType.DATA));
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        i++;
+                    }
                 } else {
-                    msg = new Message(MessageType.DATA_SHORT, toSend);
+                    Packet makePkt = new Packet();
+                    makePkt.setSource(5);
+                    makePkt.setDestination(2);
+                    makePkt.setPacketType(2);
+                    makePkt.setSeqNr(0);
+                    makePkt.setDataLen(data.length);
+                    ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
+                    for (ArrayList<Byte> pktArrayList : splitBytes) {
+                        byte[] temppkt = new byte[29];
+                        int k = 0;
+                        for (byte b : pktArrayList) {
+                            temppkt[k] = b;
+                            k++;
+                        }
+                        System.out.println(Arrays.toString(temppkt));
+                        makePkt.setData(temppkt);
+                    }
+
+                    try {
+                        bufferQueue.put(makePkt.makePkt(MessageType.DATA));
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
+
                 try {
-                    sendingQueue.put(msg);
+                    if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
+                        byte[] rtsPacketValues;
+                        Packet tmpPck = new Packet();
+                        tmpPck.setSource(5); // TODO change to client's his src
+                        tmpPck.setDestination(0);
+                        tmpPck.setAckNr(0);
+                        rtsPacketValues = tmpPck.makePkt(MessageType.DATA_SHORT);
+
+                        ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
+                        toSend.put(rtsPacketValues);
+
+                        Message rts;
+                        rts = new Message(MessageType.DATA_SHORT, toSend);
+                        sendingQueue.put(rts);
+
+                        while (bufferQueue.size() > 0) {
+                            toSend = ByteBuffer.allocate(32);
+                            toSend.put(bufferQueue.remove());
+                            Message tempMSG = new Message(MessageType.DATA, toSend);
+                            sendingQueue.put(tempMSG);
+                        }
+                    } else {
+                        printErr("there has a collision occurred");
+                    }
                 } catch (InterruptedException e) {
                     System.exit(2);
                 }
@@ -98,9 +170,9 @@ public class MyProtocol {
                 break;
             case "help":
                 printMsg("Commands:" +
-                         "\n\tchat - Send messages to others" +
-                         "\n\tlist - Show participants in the network" +
-                         "\n\thelp - Show this help message");
+                        "\n\tchat - Send messages to others" +
+                        "\n\tlist - Show participants in the network" +
+                        "\n\thelp - Show this help message");
                 break;
             default:
                 printErr("Incorrect commands, write 'help' for a list of commands");
@@ -160,6 +232,7 @@ public class MyProtocol {
 
         /**
          * Parses received messages according to message type
+         *
          * @param received Message object
          */
         private void messageTypeParser(Message received) {
@@ -210,7 +283,8 @@ public class MyProtocol {
 
         /**
          * Parses the packets it gets
-         * @param pck Packet object to parse
+         *
+         * @param pck     Packet object to parse
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
@@ -232,7 +306,7 @@ public class MyProtocol {
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     ArrayList<Byte> tmpArr = new ArrayList<>();
 
-                    for (byte b: tmp.getData()) {
+                    for (byte b : tmp.getData()) {
                         tmpArr.add(b);
                     }
                     msgs.add(tmpArr);
