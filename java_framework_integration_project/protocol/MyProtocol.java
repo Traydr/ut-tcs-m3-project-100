@@ -203,6 +203,10 @@ public class MyProtocol {
             }
         }
 
+        /**
+         * Parses received messages according to message type
+         * @param received Message object
+         */
         private void messageTypeParser(Message received) {
             switch (received.getType()) {
                 case BUSY:
@@ -212,7 +216,7 @@ public class MyProtocol {
                 case FREE:
                     // The channel is no longer busy (no nodes are sending within our
                     // detection range)
-                    System.out.println("FREE");
+                    System.out.println("[FREE]");
                     break;
                 case DATA:
                     // We received a data frame!
@@ -233,17 +237,15 @@ public class MyProtocol {
                     System.out.println("DONE_SENDING");
                     break;
                 case HELLO:
-                    // Server / audio framework hello message.
-                    // You don't have to handle this
-                    System.out.println("HELLO");
+                    System.out.println("[CONNECTED]");
                     break;
                 case SENDING: // This node is sending
-                    System.out.println("SENDING");
+                    System.out.println("[SENDING]");
                     break;
                 case END:
                     // Server / audio framework disconnect message.
                     // You don't have to handle this
-                    System.out.println("END");
+                    System.out.println("[END]");
                     System.exit(0);
                     break;
                 default:
@@ -251,6 +253,11 @@ public class MyProtocol {
             }
         }
 
+        /**
+         * Parses the packets it gets
+         * @param pck Packet object to parse
+         * @param msgType Packet type, DATA or DATA_SHORT
+         */
         private void packetParser(Packet pck, MessageType msgType) {
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
@@ -258,16 +265,11 @@ public class MyProtocol {
             }
 
             if (pck.getPacketType() == 0) {
-                if (receivedPackets.containsKey(pck.getSource())) {
-                    receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
-                } else {
-                    HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
-                    tmpSeqPck.put(pck.getSeqNr(), pck);
-                    receivedPackets.put(pck.getSource(), tmpSeqPck);
-                }
+                addPckToHash(pck);
             } else if (pck.getPacketType() == 1) {
                 // TODO Forwarding
             } else if (pck.getPacketType() == 2) {
+                addPckToHash(pck);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
@@ -287,6 +289,20 @@ public class MyProtocol {
 
             String message = new String(pck.getData(), StandardCharsets.UTF_8);
             System.out.println(message);
+        }
+
+        /**
+         * Adds an input packet to global hashmap. If it doesn't find an available inner hashmap then it creates a new oneL
+         * @param pck Packet object
+         */
+        private void addPckToHash(Packet pck) {
+            if (receivedPackets.containsKey(pck.getSource())) {
+                receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
+            } else {
+                HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
+                tmpSeqPck.put(pck.getSeqNr(), pck);
+                receivedPackets.put(pck.getSource(), tmpSeqPck);
+            }
         }
     }
 }
