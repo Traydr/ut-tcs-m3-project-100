@@ -27,6 +27,7 @@ public class MyProtocol {
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<Message> bufferQueue;
+    private BlockingQueue<Message> stagingQueue;
     private MediumAccessControl mediumAccessControl;
     private Packet packet;
 
@@ -34,11 +35,12 @@ public class MyProtocol {
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
         bufferQueue = new LinkedBlockingQueue<Message>();
+        stagingQueue = new LinkedBlockingQueue<Message>();
         mediumAccessControl = new MediumAccessControl();
         packet = new Packet();
 
         // Give the client the Queues to use
-        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue, bufferQueue);
+        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue, bufferQueue, stagingQueue);
 
         // Start thread to handle received messages!
         new receiveThread(receivedQueue).start();
@@ -105,8 +107,31 @@ public class MyProtocol {
                         Message rts;
                         rts = new Message(MessageType.DATA_SHORT, toSend);
                         sendingQueue.put(rts);
-                        //wait(1500);
-                        sendingQueue.put(msg);
+                        if (msg.getData().array().length > 32) {
+                            while (msg.getData().array().length > 32) {
+                                byte[] splitPktValues;
+                                int i = 0;
+                                packet.decode(msg.getData().array(), MessageType.DATA);
+                                Packet splitPck = new Packet();
+                                splitPck.getSource();
+                                splitPck.getDestination();
+                                splitPck.setSeqNr(i);
+                                splitPck.getData();
+                                splitPktValues = splitPck.makePkt(MessageType.DATA);
+
+                                toSend = ByteBuffer.allocate(splitPktValues.length);
+                                toSend.put(splitPktValues);
+                                Message splitpkt;
+                                splitpkt = new Message(MessageType.DATA,toSend);
+                                stagingQueue.put(splitpkt);
+                                i++;
+                            }
+                        } else {
+                            stagingQueue.put(msg);
+                        }
+                        while (stagingQueue.size() > 0) {
+                            sendingQueue.put(stagingQueue.remove());
+                        }
                     } else {
                         printErr("there has a collision occurred");
                     }
