@@ -131,7 +131,7 @@ public class MyProtocol {
                 }
 
                 try {
-                    if (mediumAccessControl.canWeSend(receivedQueue) && bufferQueue.size() > 0) {
+                    if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
                         byte[] rtsPacketValues;
                         Packet tmpPck = new Packet();
                         tmpPck.setSource(5); // TODO change to client's his src

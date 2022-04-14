@@ -11,8 +11,8 @@ public class MediumAccessControl {
      * @param receivedQueue
      * @return
      */
-    public Boolean canWeSend (BlockingQueue<Message> receivedQueue) {
-        if (receivedQueue.size() == 0) {
+    public Boolean canWeSend (BlockingQueue<Message> receivedQueue, BlockingQueue<byte[]> bufferQueue) {
+        if (receivedQueue.size() == 0 && bufferQueue.size() > 0) {
             return true;
         }
         return false;
