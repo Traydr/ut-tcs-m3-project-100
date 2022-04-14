@@ -10,6 +10,7 @@ public class Packet {
     private int packetType;
     private int seqNr;
     private int ackNr;
+    private int dataLen;
     private byte[] data;
 
 
@@ -20,6 +21,7 @@ public class Packet {
         packetType = 0;
         seqNr = 0;
         ackNr = 0;
+        dataLen = 0;
     }
 
     public int getAckNr() {
@@ -108,13 +110,17 @@ public class Packet {
      * @return the new packet
      */
     public byte[] makePkt(MessageType type) {
-        byte[] pkt = new byte[32];
+        byte[] pkt = new byte[data.length+3];
         if(type == MessageType.DATA) {
             byte sourceDest = (byte) (source << 4 | destination); //we add the source into the byte packet and shift it four bits to add the
             pkt[0] = sourceDest;
             pkt[1] = (byte) packetType;
             pkt[2] = (byte) seqNr;
-            System.arraycopy(data, 0, pkt, 4, 28);
+            int j = 0;
+            for(int i = 3; i < data.length; i++){
+                pkt[i] = data[j];
+                j++;
+            }
         }
         if(type == MessageType.DATA_SHORT) {
             pkt = new byte[2];
