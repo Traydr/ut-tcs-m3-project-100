@@ -27,6 +27,7 @@ public class MyProtocol {
     // The frequency to use.
     private static int frequency = 10500;
     private Forwarding forwardingTable = new Forwarding(myAdress);
+    int len;
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
@@ -88,6 +89,7 @@ public class MyProtocol {
                     makePkt.setDestination(2);
                     makePkt.setPacketType(0);
                     makePkt.setDataLen(data.length);
+                    len = makePkt.getDataLen();
 
                     int i = 0;
                     ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
@@ -117,17 +119,8 @@ public class MyProtocol {
                     makePkt.setPacketType(2);
                     makePkt.setSeqNr(0);
                     makePkt.setDataLen(data.length);
-                    ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
-                    for (ArrayList<Byte> pktArrayList : splitBytes) {
-                        byte[] temppkt = new byte[29];
-                        int k = 0;
-                        for (byte b : pktArrayList) {
-                            temppkt[k] = b;
-                            k++;
-                        }
-                        System.out.println(Arrays.toString(temppkt));
-                        makePkt.setData(temppkt);
-                    }
+                    len = makePkt.getDataLen();
+                    makePkt.setData(data);
 
                     try {
                         bufferQueue.put(makePkt.makePkt(MessageType.DATA));
@@ -210,6 +203,7 @@ public class MyProtocol {
             this.receivedPackets = new HashMap<>();
             dataTable = table;
         }
+
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
             for (int i = 0; i < bytesLength; i++) {
                 System.out.print(Byte.toString(bytes.get(i)) + " ");
@@ -319,11 +313,18 @@ public class MyProtocol {
             }
 
             String message = new String(pck.getData(), StandardCharsets.UTF_8);
-            System.out.println(message);
+            StringBuilder msg = new StringBuilder();
+            for (int i = 0; i < message.length(); i++) {
+                if (message.charAt(i) != 0) {
+                    msg.append(message.charAt(i));
+                }
+            }
+            System.out.println(msg);
         }
 
         /**
          * Adds an input packet to global hashmap. If it doesn't find an available inner hashmap then it creates a new one
+         *
          * @param pck Packet object
          */
         private void addPckToHash(Packet pck) {

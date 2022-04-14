@@ -127,7 +127,13 @@ public class Packet {
             pkt[1] = typeAndData;
             pkt[2] = (byte) seqNr;
             int j = 0;
-            for(int i = 3; i < 32; i++){
+            int len;
+            if(getDataLen() < 29) {
+                len = getDataLen() + 3;
+            } else {
+                len = 32;
+            }
+            for(int i = 3; i < len; i++){
                 pkt[i] = data[j];
                 j++;
             }
