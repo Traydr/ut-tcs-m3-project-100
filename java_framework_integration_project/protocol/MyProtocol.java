@@ -147,7 +147,8 @@ public class MyProtocol {
                 printMsg("Commands:" +
                         "\n\tchat - Send messages to others" +
                         "\n\tlist - Show participants in the network" +
-                        "\n\thelp - Show this help message");
+                        "\n\thelp - Show this help message" +
+                        "\n\tquit - quit client");
                 break;
             default:
                 printErr("Incorrect commands, write 'help' for a list of commands");
