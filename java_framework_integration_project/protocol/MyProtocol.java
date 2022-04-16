@@ -18,22 +18,19 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class MyProtocol {
 
     // The host to connect to. Set this to localhost when using the audio interface tool.
-    private static String SERVER_IP = "netsys.ewi.utwente.nl"; //"127.0.0.1";
+    private static final String SERVER_IP = "netsys.ewi.utwente.nl"; //"127.0.0.1";
     // The port to connect to. 8954 for the simulation server.
-    private static int SERVER_PORT = 8954;
+    private static final int SERVER_PORT = 8954;
+    // The frequency to use.
+    private static int frequency = 10500;
     private static Random random = new Random();
     private static int myAdress = random.nextInt(14) + 1;
     private static int step = 0;
-    // The frequency to use.
-    private static int frequency = 10500;
     private Forwarding forwardingTable = new Forwarding(myAdress);
-    int len;
-
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mediumAccessControl;
-    private Packet packet;
     private TextSplit textSplit;
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
@@ -41,7 +38,6 @@ public class MyProtocol {
         sendingQueue = new LinkedBlockingQueue<Message>();
         bufferQueue = new LinkedBlockingQueue<>();
         mediumAccessControl = new MediumAccessControl();
-        packet = new Packet();
         textSplit = new TextSplit();
 
         // Give the client the Queues to use
@@ -84,46 +80,31 @@ public class MyProtocol {
                 byte[] data;
                 data = textSplit.textToBytes(String.valueOf(chat));
                 if (data.length > 29) {
-                    Packet makePkt = new Packet();
-                    makePkt.setSource(5);
-                    makePkt.setDestination(2);
-                    makePkt.setPacketType(0);
-                    makePkt.setDataLen(data.length);
-                    len = makePkt.getDataLen();
-
                     int i = 0;
                     ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
                     for (ArrayList<Byte> pktArrayList : splitBytes) {
-                        if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                            makePkt.setPacketType(2);
-                        }
-                        byte[] temppkt = new byte[29];
+                        byte[] tmpPkt = new byte[29];
                         int k = 0;
                         for (byte b : pktArrayList) {
-                            temppkt[k] = b;
+                            tmpPkt[k] = b;
                             k++;
                         }
-                        makePkt.setData(temppkt);
-                        makePkt.setSeqNr(i);
+                        int destination = 1; // TODO Change later into dynamic!!!
                         try {
-                            bufferQueue.put(makePkt.makePkt(MessageType.DATA));
+                            if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
+                                bufferQueue.put(createDataPkt(myAdress, destination, 2, tmpPkt.length, i, tmpPkt));
+                            } else {
+                                bufferQueue.put(createDataPkt(myAdress, destination, 0, tmpPkt.length, i, tmpPkt));
+                            }
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         i++;
                     }
                 } else {
-                    Packet makePkt = new Packet();
-                    makePkt.setSource(5);
-                    makePkt.setDestination(2);
-                    makePkt.setPacketType(2);
-                    makePkt.setSeqNr(0);
-                    makePkt.setDataLen(data.length);
-                    len = makePkt.getDataLen();
-                    makePkt.setData(data);
-
+                    int destination = 0; // TODO CHANGE THIS
                     try {
-                        bufferQueue.put(makePkt.makePkt(MessageType.DATA));
+                        bufferQueue.put(createDataPkt(myAdress, destination, 2, data.length, 0, data));
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -132,11 +113,7 @@ public class MyProtocol {
                 try {
                     if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
                         byte[] rtsPacketValues;
-                        Packet tmpPck = new Packet();
-                        tmpPck.setSource(5); // TODO change to client's his src
-                        tmpPck.setDestination(0);
-                        tmpPck.setAckNr(0);
-                        rtsPacketValues = tmpPck.makePkt(MessageType.DATA_SHORT);
+                        rtsPacketValues = createDataShortPkt(myAdress, 0, 0);
 
                         ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
                         toSend.put(rtsPacketValues);
@@ -172,6 +149,25 @@ public class MyProtocol {
                 break;
         }
         return false;
+    }
+
+    private byte[] createDataPkt(int src, int dst, int pktType, int dataLen, int seqNr, byte[] data) {
+        Packet pck = new Packet();
+        pck.setSource(src);
+        pck.setDestination(dst);
+        pck.setPacketType(pktType);
+        pck.setDataLen(dataLen);
+        pck.setSeqNr(seqNr);
+        pck.setData(data);
+        return pck.makePkt(MessageType.DATA);
+    }
+
+    private byte[] createDataShortPkt(int src, int dst, int ackNr) {
+        Packet pck = new Packet();
+        pck.setSource(src);
+        pck.setDestination(dst);
+        pck.setAckNr(ackNr);
+        return pck.makePkt(MessageType.DATA_SHORT);
     }
 
     private void printErr(String err) {
