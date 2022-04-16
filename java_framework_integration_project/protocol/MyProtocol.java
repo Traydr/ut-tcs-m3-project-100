@@ -136,6 +136,7 @@ public class MyProtocol {
         } else {
             int destination = 0; // TODO CHANGE THIS
             try {
+                System.out.println("\t" + Arrays.toString(data) + "\n\tDATA LEN: " + data.length + "\n\tPKT LEN");
                 bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
             } catch (InterruptedException e) {
                 e.printStackTrace();

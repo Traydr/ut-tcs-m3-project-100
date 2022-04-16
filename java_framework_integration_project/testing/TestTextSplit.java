@@ -7,8 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class TestTextSplit {
@@ -53,5 +52,6 @@ public class TestTextSplit {
         testArray.add((byte) 0x74);
         testArrayOfArray.add(testArray);
         assertEquals("test", TextSplit.arrayOfArrayBackToText(testArrayOfArray, 4));
+        assertNotEquals("test", TextSplit.arrayOfArrayBackToText(testArrayOfArray, 3));
     }
 }

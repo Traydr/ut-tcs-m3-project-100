@@ -37,7 +37,7 @@ public class TestPacket {
         byte[] msg = new byte[32];
         MessageType msgType = MessageType.DATA;
         msg[0] = (byte) 0xf1;
-        msg[1] = (byte) 0x00;
+        msg[1] = (byte) 0x01;
         msg[2] = (byte) 0x01;
 
         pck.decode(msg, msgType);
@@ -46,6 +46,7 @@ public class TestPacket {
         assertEquals(0x01, pck.getDestination());
         assertEquals(0x00, pck.getPacketType());
         assertEquals(0x01, pck.getSeqNr());
+        assertEquals(0x01, pck.getDataLen());
     }
 
     @Test
