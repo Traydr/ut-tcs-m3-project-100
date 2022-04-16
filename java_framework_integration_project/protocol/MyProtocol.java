@@ -345,6 +345,8 @@ public class MyProtocol {
                 while (connectedClients.contains(myAddress)) {
                     myAddress = new Random().nextInt(14) + 1;
                 }
+            } else if (pck.getSource() == myAddress) {
+                return;
             }
 
             step++;
