@@ -82,63 +82,7 @@ public class MyProtocol {
                 for (int i = 1; i < parsedInput.length; i++) {
                     chat.append(parsedInput[i]).append(" ");
                 }
-                byte[] data;
-                data = textSplit.textToBytes(String.valueOf(chat));
-                if (data.length > 29) {
-                    int i = 0;
-                    ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
-                    for (ArrayList<Byte> pktArrayList : splitBytes) {
-                        byte[] tmpPkt = new byte[29];
-                        int k = 0;
-                        for (byte b : pktArrayList) {
-                            tmpPkt[k] = b;
-                            k++;
-                        }
-                        int destination = 1; // TODO Change later into dynamic!!!
-                        try {
-                            if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                                bufferQueue.put(createDataPkt(myAdress, destination, 2, tmpPkt.length, i, tmpPkt));
-                            } else {
-                                bufferQueue.put(createDataPkt(myAdress, destination, 0, tmpPkt.length, i, tmpPkt));
-                            }
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        i++;
-                    }
-                } else {
-                    int destination = 0; // TODO CHANGE THIS
-                    try {
-                        bufferQueue.put(createDataPkt(myAdress, destination, 2, data.length, 0, data));
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                try {
-                    if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
-                        byte[] rtsPacketValues;
-                        rtsPacketValues = createDataShortPkt(myAdress, 0, 0);
-
-                        ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
-                        toSend.put(rtsPacketValues);
-
-                        Message rts;
-                        rts = new Message(MessageType.DATA_SHORT, toSend);
-                        sendingQueue.put(rts);
-
-                        while (bufferQueue.size() > 0) {
-                            toSend = ByteBuffer.allocate(32);
-                            toSend.put(bufferQueue.remove());
-                            Message tempMSG = new Message(MessageType.DATA, toSend);
-                            sendingQueue.put(tempMSG);
-                        }
-                    } else {
-                        printErr("there has a collision occurred");
-                    }
-                } catch (InterruptedException e) {
-                    System.exit(2);
-                }
+                sendNetwork(textSplit.textToBytes(String.valueOf(chat)));
                 break;
             case "list":
                 // TODO call protocol.Forwarding
@@ -155,6 +99,64 @@ public class MyProtocol {
                 break;
         }
         return false;
+    }
+
+    private void sendNetwork(byte[] data) {
+        if (data.length > 29) {
+            int i = 0;
+            ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
+            for (ArrayList<Byte> pktArrayList : splitBytes) {
+                byte[] tmpPkt = new byte[29];
+                int k = 0;
+                for (byte b : pktArrayList) {
+                    tmpPkt[k] = b;
+                    k++;
+                }
+                int destination = 1; // TODO Change later into dynamic!!!
+                try {
+                    if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
+                        bufferQueue.put(createDataPkt(myAdress, destination, 2, tmpPkt.length, i, tmpPkt));
+                    } else {
+                        bufferQueue.put(createDataPkt(myAdress, destination, 0, tmpPkt.length, i, tmpPkt));
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                i++;
+            }
+        } else {
+            int destination = 0; // TODO CHANGE THIS
+            try {
+                bufferQueue.put(createDataPkt(myAdress, destination, 2, data.length, 0, data));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
+                byte[] rtsPacketValues;
+                rtsPacketValues = createDataShortPkt(myAdress, 0, 0);
+
+                ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
+                toSend.put(rtsPacketValues);
+
+                Message rts;
+                rts = new Message(MessageType.DATA_SHORT, toSend);
+                sendingQueue.put(rts);
+
+                while (bufferQueue.size() > 0) {
+                    toSend = ByteBuffer.allocate(32);
+                    toSend.put(bufferQueue.remove());
+                    Message tempMSG = new Message(MessageType.DATA, toSend);
+                    sendingQueue.put(tempMSG);
+                }
+            } else {
+                printErr("there has a collision occurred");
+            }
+        } catch (InterruptedException e) {
+            System.exit(2);
+        }
     }
 
     /**
