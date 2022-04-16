@@ -5,11 +5,11 @@ import java.util.ArrayList;
 
 public class TextSplit {
 
-    public byte[] textToBytes(String msg){
+    public static byte[] textToBytes(String msg){
         return msg.getBytes(StandardCharsets.UTF_8);
     }
 
-    public ArrayList<ArrayList<Byte>> splitTextBytes(byte[] msg, int size){
+    public static ArrayList<ArrayList<Byte>> splitTextBytes(byte[] msg, int size){
         ArrayList<ArrayList<Byte>> listOfList = new ArrayList<>();
         for(int j = 0; j < msg.length; j += size) {
             ArrayList<Byte> pkt = new ArrayList<>();
@@ -30,7 +30,7 @@ public class TextSplit {
         return listOfList;
     }
 
-    public String arrayOfArrayBackToText(ArrayList<ArrayList<Byte>> msg){
+    public static String arrayOfArrayBackToText(ArrayList<ArrayList<Byte>> msg){
         StringBuilder original = new StringBuilder();
         for (ArrayList<Byte> bytes : msg) {
             for (Byte aByte : bytes) {

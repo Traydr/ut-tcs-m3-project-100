@@ -31,14 +31,12 @@ public class MyProtocol {
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mediumAccessControl;
-    private TextSplit textSplit;
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
-        receivedQueue = new LinkedBlockingQueue<Message>();
-        sendingQueue = new LinkedBlockingQueue<Message>();
+        receivedQueue = new LinkedBlockingQueue<>();
+        sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
         mediumAccessControl = new MediumAccessControl();
-        textSplit = new TextSplit();
 
         // Give the client the Queues to use
         new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
@@ -62,6 +60,7 @@ public class MyProtocol {
 
     /**
      * Parser through the input we get from the user
+     *
      * @param input Input from the user
      * @return If quit then true, otherwise false
      */
@@ -82,7 +81,7 @@ public class MyProtocol {
                 for (int i = 1; i < parsedInput.length; i++) {
                     chat.append(parsedInput[i]).append(" ");
                 }
-                sendNetwork(textSplit.textToBytes(String.valueOf(chat)));
+                sendNetwork(TextSplit.textToBytes(String.valueOf(chat)));
                 break;
             case "list":
                 // TODO call protocol.Forwarding
@@ -104,7 +103,7 @@ public class MyProtocol {
     private void sendNetwork(byte[] data) {
         if (data.length > 29) {
             int i = 0;
-            ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
+            ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, 29);
             for (ArrayList<Byte> pktArrayList : splitBytes) {
                 byte[] tmpPkt = new byte[29];
                 int k = 0;
@@ -161,12 +160,13 @@ public class MyProtocol {
 
     /**
      * Creates a data packet based on input
-     * @param src Source address
-     * @param dst Destination address (0 - broadcast all)
+     *
+     * @param src     Source address
+     * @param dst     Destination address (0 - broadcast all)
      * @param pktType Packet type (0 - data, 1 - forwarding, 2 - data finished)
      * @param dataLen Data length
-     * @param seqNr Sequence number
-     * @param data Data
+     * @param seqNr   Sequence number
+     * @param data    Data
      * @return A byte array of exactly 32 bytes to specification
      */
     private byte[] createDataPkt(int src, int dst, int pktType, int dataLen, int seqNr, byte[] data) {
@@ -182,8 +182,9 @@ public class MyProtocol {
 
     /**
      * Creates a data short packet based on input
-     * @param src Source address
-     * @param dst Destination address (0 - broadcast all)
+     *
+     * @param src   Source address
+     * @param dst   Destination address (0 - broadcast all)
      * @param ackNr Acknowledgement number
      * @return A byte array of exactly 2 bytes to specification
      */
@@ -197,6 +198,7 @@ public class MyProtocol {
 
     /**
      * Prints a msg with a '[ERR]' prefix
+     *
      * @param err Error
      */
     private void printErr(String err) {
@@ -205,6 +207,7 @@ public class MyProtocol {
 
     /**
      * Function to shorthand print
+     *
      * @param msg Message
      */
     private void printMsg(String msg) {
@@ -334,8 +337,7 @@ public class MyProtocol {
                     }
                     msgs.add(tmpArr);
                 }
-                TextSplit ts = new TextSplit();
-                reconstructedMessage = ts.arrayOfArrayBackToText(msgs);
+                reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs);
                 System.out.println(reconstructedMessage);
 
                 receivedPackets.put(pck.getSource(), new HashMap<>());
