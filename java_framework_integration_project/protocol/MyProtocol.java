@@ -145,28 +145,44 @@ public class MyProtocol {
             }
         }
 
-        try {
-            if (mac.canWeSend(receivedQueue, bufferQueue)) {
-                byte[] rtsPacketValues;
-                rtsPacketValues = createDataShortPkt(myAddress, 0, 0);
+        if (mac.canWeSend(receivedQueue, bufferQueue)) {
+            sendRts(myAddress, 0, 0);
+            mac.haveSentPacket();
 
-                ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
-                toSend.put(rtsPacketValues);
-
-                Message rts;
-                rts = new Message(MessageType.DATA_SHORT, toSend);
-                sendingQueue.put(rts);
-                mac.haveSentPacket();
-
-                while (bufferQueue.size() > 0) {
-                    toSend = ByteBuffer.allocate(DATA_PACKET_LENGTH);
-                    toSend.put(bufferQueue.remove());
-                    Message tempMSG = new Message(MessageType.DATA, toSend);
-                    sendingQueue.put(tempMSG);
-                }
-            } else {
-                printErr("there has a collision occurred");
+            while (bufferQueue.size() > 0) {
+                sendPacket(bufferQueue.remove());
             }
+        } else {
+            printErr("there has a collision occurred");
+        }
+    }
+
+    /**
+     * Send a packet to the network
+     * @param pck byte[] of a fully formed packet
+     */
+    private void sendPacket(byte[] pck) {
+        ByteBuffer sending = ByteBuffer.allocate(DATA_PACKET_LENGTH);
+        sending.put(pck);
+        try {
+            sendingQueue.put(new Message(MessageType.DATA, sending));
+        } catch (InterruptedException e) {
+            System.exit(2);
+        }
+    }
+
+    /**
+     * Sends an RTS packet to the network
+     *
+     * @param src   Source address
+     * @param dst   Destination address
+     * @param ackNr Acknowledgement number
+     */
+    private void sendRts(int src, int dst, int ackNr) {
+        ByteBuffer sending = ByteBuffer.allocate(DATA_SHORT_PACKET_LENGTH);
+        sending.put(createDataShortPkt(src, dst, ackNr));
+        try {
+            sendingQueue.put(new Message(MessageType.DATA_SHORT, sending));
         } catch (InterruptedException e) {
             System.exit(2);
         }
