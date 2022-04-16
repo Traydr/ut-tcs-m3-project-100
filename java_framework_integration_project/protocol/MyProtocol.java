@@ -16,13 +16,22 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 
 public class MyProtocol {
-
+    // FRAMEWORK START
     // The host to connect to. Set this to localhost when using the audio interface tool.
     private static final String SERVER_IP = "netsys.ewi.utwente.nl"; //"127.0.0.1";
     // The port to connect to. 8954 for the simulation server.
     private static final int SERVER_PORT = 8954;
     // The frequency to use.
     private static int frequency = 10500;
+    // FRAMEWORK END
+    // CONSTANTS START
+    private static final int DATA_PACKET_LENGTH = 32;
+    private static final int DATA_SHORT_PACKET_LENGTH = 2;
+    private static final int DATA_DATA_LENGTH = 29;
+    private static final int PACKET_TYPE_SENDING = 0;
+    private static final int PACKET_TYPE_FORWARDING = 1;
+    private static final int PACKET_TYPE_DONE_SENDING = 2;
+    // CONSTANTS END
     private static Random random = new Random();
     private static int myAdress = random.nextInt(14) + 1;
     private static int step = 0;
@@ -101,11 +110,11 @@ public class MyProtocol {
     }
 
     private void sendNetwork(byte[] data) {
-        if (data.length > 29) {
+        if (data.length > DATA_DATA_LENGTH) {
             int i = 0;
-            ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, 29);
+            ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, DATA_DATA_LENGTH);
             for (ArrayList<Byte> pktArrayList : splitBytes) {
-                byte[] tmpPkt = new byte[29];
+                byte[] tmpPkt = new byte[DATA_DATA_LENGTH];
                 int k = 0;
                 for (byte b : pktArrayList) {
                     tmpPkt[k] = b;
@@ -114,9 +123,9 @@ public class MyProtocol {
                 int destination = 1; // TODO Change later into dynamic!!!
                 try {
                     if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                        bufferQueue.put(createDataPkt(myAdress, destination, 2, tmpPkt.length, i, tmpPkt));
+                        bufferQueue.put(createDataPkt(myAdress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt));
                     } else {
-                        bufferQueue.put(createDataPkt(myAdress, destination, 0, tmpPkt.length, i, tmpPkt));
+                        bufferQueue.put(createDataPkt(myAdress, destination, PACKET_TYPE_SENDING, tmpPkt.length, i, tmpPkt));
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -126,7 +135,7 @@ public class MyProtocol {
         } else {
             int destination = 0; // TODO CHANGE THIS
             try {
-                bufferQueue.put(createDataPkt(myAdress, destination, 2, data.length, 0, data));
+                bufferQueue.put(createDataPkt(myAdress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -145,7 +154,7 @@ public class MyProtocol {
                 sendingQueue.put(rts);
 
                 while (bufferQueue.size() > 0) {
-                    toSend = ByteBuffer.allocate(32);
+                    toSend = ByteBuffer.allocate(DATA_PACKET_LENGTH);
                     toSend.put(bufferQueue.remove());
                     Message tempMSG = new Message(MessageType.DATA, toSend);
                     sendingQueue.put(tempMSG);
@@ -320,12 +329,10 @@ public class MyProtocol {
                 return;
             }
 
-            if (pck.getPacketType() == 0) {
+            if (pck.getPacketType() == PACKET_TYPE_SENDING) {
                 addPckToHash(pck);
-            } else if (pck.getPacketType() == 1) {
-
-
-            } else if (pck.getPacketType() == 2) {
+            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 addPckToHash(pck);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
