@@ -10,11 +10,6 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * This is just some example code to show you how to interact with the server using the provided
- * 'Client' class and two queues. Feel free to modify this code in any way you like!
- */
-
 public class MyProtocol {
     // FRAMEWORK START
     // The host to connect to. Set this to localhost when using the audio interface tool.
@@ -355,15 +350,6 @@ public class MyProtocol {
 
                 receivedPackets.put(pck.getSource(), new HashMap<>());
             }
-
-            String message = new String(pck.getData(), StandardCharsets.UTF_8);
-            StringBuilder msg = new StringBuilder();
-            for (int i = 0; i < message.length(); i++) {
-                if (message.charAt(i) != 0) {
-                    msg.append(message.charAt(i));
-                }
-            }
-            System.out.println(msg);
         }
 
         /**
@@ -382,4 +368,3 @@ public class MyProtocol {
         }
     }
 }
-
