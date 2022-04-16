@@ -2,6 +2,7 @@ package protocol;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class TextSplit {
 
@@ -30,13 +31,21 @@ public class TextSplit {
         return listOfList;
     }
 
-    public static String arrayOfArrayBackToText(ArrayList<ArrayList<Byte>> msg){
+    public static String arrayOfArrayBackToText(ArrayList<ArrayList<Byte>> msg, int lastMessageLen){
         StringBuilder original = new StringBuilder();
         for (ArrayList<Byte> bytes : msg) {
-            for (Byte aByte : bytes) {
-                String s = new String(new byte[]{aByte}, StandardCharsets.UTF_8);
-                original.append(s);
+            if (bytes != msg.get(msg.size() - 1)) {
+                for (Byte aByte : bytes) {
+                    String s = new String(new byte[]{aByte}, StandardCharsets.UTF_8);
+                    original.append(s);
+                }
+            } else {
+                for (int i = 0; i < lastMessageLen; i++) {
+                    String s = new String(new byte[]{bytes.get(i)}, StandardCharsets.UTF_8);
+                    original.append(s);
+                }
             }
+
         }
         return original.toString();
     }

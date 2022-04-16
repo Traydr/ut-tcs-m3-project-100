@@ -91,7 +91,7 @@ public class MyProtocol {
                 for (int i = 1; i < parsedInput.length; i++) {
                     chat.append(parsedInput[i]).append(" ");
                 }
-                sendNetwork(TextSplit.textToBytes(String.valueOf(chat)));
+                sendNetwork(TextSplit.textToBytes(chat.toString()));
                 break;
             case "list":
                 // TODO call protocol.Forwarding
@@ -115,7 +115,7 @@ public class MyProtocol {
             int i = 0;
             ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, DATA_DATA_LENGTH);
             for (ArrayList<Byte> pktArrayList : splitBytes) {
-                byte[] tmpPkt = new byte[DATA_DATA_LENGTH];
+                byte[] tmpPkt = new byte[pktArrayList.size()];
                 int k = 0;
                 for (byte b : pktArrayList) {
                     tmpPkt[k] = b;
@@ -126,7 +126,7 @@ public class MyProtocol {
                     if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
                         bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt));
                     } else {
-                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, tmpPkt.length, i, tmpPkt));
+                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt));
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -336,7 +336,7 @@ public class MyProtocol {
                     }
                     msgs.add(tmpArr);
                 }
-                reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs);
+                reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 System.out.println(reconstructedMessage);
 
                 receivedPackets.put(pck.getSource(), new HashMap<>());
