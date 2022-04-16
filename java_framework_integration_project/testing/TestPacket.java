@@ -19,16 +19,16 @@ public class TestPacket {
 
     @Test
     void testBitExtracted() {
-        int numToGet;
         int returnValue;
 
-        numToGet = 0xff;
-        returnValue = pck.bitExtracted(numToGet, 8, 0);
-        assertEquals(numToGet, returnValue);
+        returnValue = pck.bitExtracted(0xff, 8, 0);
+        assertEquals(0xff, returnValue);
 
-        numToGet = 0x01;
-        returnValue = pck.bitExtracted(numToGet, 1, 0);
-        assertEquals(numToGet, returnValue);
+        returnValue = pck.bitExtracted(0xf6, 4, 4);
+        assertEquals(0x0f, returnValue);
+
+        returnValue = pck.bitExtracted(0x01, 1, 0);
+        assertEquals(0x01, returnValue);
     }
 
     @Test

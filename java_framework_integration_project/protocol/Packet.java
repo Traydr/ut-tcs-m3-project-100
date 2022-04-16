@@ -11,8 +11,7 @@ public class Packet {
     private int dataLen;
     private byte[] data;
 
-
-    public Packet(){
+    public Packet() {
         data = new byte[29];
         source = 0;
         destination = 0;
@@ -46,31 +45,29 @@ public class Packet {
         return data;
     }
 
-    public int getDataLen(){
+    public int getDataLen() {
         return dataLen;
     }
 
     /**
-     * Gets a number from a certain num of bits
-     * @param binNum Number to extract from
-     * @param numBitsShifted How many bits to read
-     * @param startingPos From 1-8, From the left side of the byte THIS IS WRONG REWRITE
-     * @return
+     * Gets a number from a certain selection of bits
+     *
+     * @param binaryInput   Binary number to read from
+     * @param numBitsToRead How many bits to read to the left of the ending position
+     * @param endingPos     From 0-7, Indicates the end reading position from the right side
+     * @return An integer
      */
-    public int bitExtracted(int binNum, int numBitsShifted, int startingPos){
-        // TODO I hate this function - Titas
-        // TODO too bad - Andreea
-        return (((1 << numBitsShifted) - 1) & (binNum >> (startingPos)));
+    public int bitExtracted(int binaryInput, int numBitsToRead, int endingPos) {
+        return (((1 << numBitsToRead) - 1) & (binaryInput >> (endingPos)));
     }
 
     /**
      * Decoding a packet and entering the details
-     * @param msg The whole packet
+     *
+     * @param msg  The whole packet
      * @param type Message type, to account for differences in message size
      */
-    public void decode(byte[] msg, MessageType type){
-        // TODO Remove the hated func
-        // TODO Haha, we're still using it
+    public void decode(byte[] msg, MessageType type) {
         if (type == MessageType.DATA) {
             source = bitExtracted(msg[0], 4, 4);
             destination = bitExtracted(msg[0], 4, 0);
@@ -115,12 +112,13 @@ public class Packet {
 
     /**
      * Adding the decoded stuff back in a new packet
+     *
      * @param type Message type, to account for differences in message size
      * @return the new packet
      */
     public byte[] makePkt(MessageType type) {
         byte[] pkt = new byte[32];
-        if(type == MessageType.DATA) {
+        if (type == MessageType.DATA) {
             byte sourceDest = (byte) (source << 4 | destination);//we add the source into the byte packet and shift it four bits to add the
             byte typeAndData = (byte) (packetType << 6 | dataLen);
             pkt[0] = sourceDest;
@@ -128,17 +126,17 @@ public class Packet {
             pkt[2] = (byte) seqNr;
             int j = 0;
             int len;
-            if(getDataLen() < 29) {
+            if (getDataLen() < 29) {
                 len = getDataLen() + 3;
             } else {
                 len = 32;
             }
-            for(int i = 3; i < len; i++){
+            for (int i = 3; i < len; i++) {
                 pkt[i] = data[j];
                 j++;
             }
         }
-        if(type == MessageType.DATA_SHORT) {
+        if (type == MessageType.DATA_SHORT) {
             pkt = new byte[2];
             byte sourceDest = (byte) (source << 4 | destination);
             pkt[0] = sourceDest;
