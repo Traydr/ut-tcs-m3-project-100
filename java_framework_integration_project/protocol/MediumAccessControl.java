@@ -1,11 +1,16 @@
 package protocol;
 
 import client.Message;
-import client.MessageType;
 
 import java.util.concurrent.BlockingQueue;
 
 public class MediumAccessControl {
+    private boolean sentPacket;
+
+    public MediumAccessControl() {
+        this.sentPacket = false;
+    }
+
     /**
      * this function checks if we receive anything, if not we are allowed to send and return true.
      * @param receivedQueue
@@ -23,6 +28,14 @@ public class MediumAccessControl {
             return true;
         }
         return false;
+    }
+
+    public boolean isSentPacket() {
+        return sentPacket;
+    }
+
+    public void haveSentPacket() {
+        this.sentPacket = true;
     }
 }
 

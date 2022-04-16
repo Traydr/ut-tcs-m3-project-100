@@ -5,7 +5,6 @@ import client.Message;
 import client.MessageType;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -34,18 +33,20 @@ public class MyProtocol {
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
-    private MediumAccessControl mediumAccessControl;
+    private MediumAccessControl mac;
+    private ArrayList<Integer> connectedClients;
     // GLOBAL VARIABLES END
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<>();
         sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
-        mediumAccessControl = new MediumAccessControl();
+        mac = new MediumAccessControl();
 
         myAddress = new Random().nextInt(14) + 1;
         forwarding = new Forwarding(myAddress);
         step = 0;
+        connectedClients = new ArrayList<>();
 
 
         // Give the client the Queues to use
@@ -94,7 +95,9 @@ public class MyProtocol {
                 sendNetwork(TextSplit.textToBytes(chat.toString()));
                 break;
             case "list":
-                // TODO call protocol.Forwarding
+                StringBuilder connections = new StringBuilder();
+                connectedClients.forEach((n) -> connections.append("\n\t").append((n)));
+                printMsg("Connected Clients:" + connections);
                 break;
             case "help":
                 printMsg("Commands:" +
@@ -136,7 +139,6 @@ public class MyProtocol {
         } else {
             int destination = 0; // TODO CHANGE THIS
             try {
-                System.out.println("\t" + Arrays.toString(data) + "\n\tDATA LEN: " + data.length + "\n\tPKT LEN");
                 bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -144,7 +146,7 @@ public class MyProtocol {
         }
 
         try {
-            if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
+            if (mac.canWeSend(receivedQueue, bufferQueue)) {
                 byte[] rtsPacketValues;
                 rtsPacketValues = createDataShortPkt(myAddress, 0, 0);
 
@@ -154,6 +156,7 @@ public class MyProtocol {
                 Message rts;
                 rts = new Message(MessageType.DATA_SHORT, toSend);
                 sendingQueue.put(rts);
+                mac.haveSentPacket();
 
                 while (bufferQueue.size() > 0) {
                     toSend = ByteBuffer.allocate(DATA_PACKET_LENGTH);
@@ -316,6 +319,17 @@ public class MyProtocol {
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
+            // Checks if our address is already in use
+            if (!connectedClients.contains(pck.getSource())) {
+                connectedClients.add(pck.getSource());
+            }
+
+            if (pck.getSource() == myAddress && !mac.isSentPacket()) {
+                while (connectedClients.contains(myAddress)) {
+                    myAddress = new Random().nextInt(14) + 1;
+                }
+            }
+
             step++;
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
