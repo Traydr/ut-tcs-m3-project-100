@@ -52,7 +52,7 @@ public class MyProtocol {
         new Client(server_ip, server_port, frequency, receivedQueue, sendingQueue);
 
         // Start thread to handle received messages!
-        new receiveThread(receivedQueue, forwarding).start();
+        new receiveThread(receivedQueue).start();
 
         // Read input from user
         try {
@@ -224,7 +224,7 @@ public class MyProtocol {
         System.out.println(msg);
     }
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         if (args.length > 0) {
             frequency = Integer.parseInt(args[0]);
         }
@@ -237,13 +237,11 @@ public class MyProtocol {
         // Outer integer contains the source address of the packets
         // Inner integer contains the sequence number of the packets
         private HashMap<Integer, HashMap<Integer, Packet>> receivedPackets;
-        private Forwarding dataTable;
 
-        public receiveThread(BlockingQueue<Message> receivedQueue, Forwarding table) {
+        public receiveThread(BlockingQueue<Message> receivedQueue) {
             super();
             this.receivedQueue = receivedQueue;
             this.receivedPackets = new HashMap<>();
-            dataTable = table;
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
