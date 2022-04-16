@@ -60,6 +60,11 @@ public class MyProtocol {
         }
     }
 
+    /**
+     * Parser through the input we get from the user
+     * @param input Input from the user
+     * @return If quit then true, otherwise false
+     */
     private boolean inputParser(String input) {
         String[] parsedInput = input.split(" ");
         switch (parsedInput[0].toLowerCase()) {
@@ -151,6 +156,16 @@ public class MyProtocol {
         return false;
     }
 
+    /**
+     * Creates a data packet based on input
+     * @param src Source address
+     * @param dst Destination address (0 - broadcast all)
+     * @param pktType Packet type (0 - data, 1 - forwarding, 2 - data finished)
+     * @param dataLen Data length
+     * @param seqNr Sequence number
+     * @param data Data
+     * @return A byte array of exactly 32 bytes to specification
+     */
     private byte[] createDataPkt(int src, int dst, int pktType, int dataLen, int seqNr, byte[] data) {
         Packet pck = new Packet();
         pck.setSource(src);
@@ -162,6 +177,13 @@ public class MyProtocol {
         return pck.makePkt(MessageType.DATA);
     }
 
+    /**
+     * Creates a data short packet based on input
+     * @param src Source address
+     * @param dst Destination address (0 - broadcast all)
+     * @param ackNr Acknowledgement number
+     * @return A byte array of exactly 2 bytes to specification
+     */
     private byte[] createDataShortPkt(int src, int dst, int ackNr) {
         Packet pck = new Packet();
         pck.setSource(src);
@@ -170,10 +192,18 @@ public class MyProtocol {
         return pck.makePkt(MessageType.DATA_SHORT);
     }
 
+    /**
+     * Prints a msg with a '[ERR]' prefix
+     * @param err Error
+     */
     private void printErr(String err) {
         System.out.println("[ERR] " + err);
     }
 
+    /**
+     * Function to shorthand print
+     * @param msg Message
+     */
     private void printMsg(String msg) {
         System.out.println(msg);
     }
