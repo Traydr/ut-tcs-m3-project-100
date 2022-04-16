@@ -32,14 +32,15 @@ public class MyProtocol {
     private static final int PACKET_TYPE_FORWARDING = 1;
     private static final int PACKET_TYPE_DONE_SENDING = 2;
     // CONSTANTS END
-    private static Random random = new Random();
-    private static int myAdress = random.nextInt(14) + 1;
-    private static int step = 0;
-    private Forwarding forwardingTable = new Forwarding(myAdress);
+    // GLOBAL VARIABLES START
+    private static int myAddress;
+    private static int step;
+    private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mediumAccessControl;
+    // GLOBAL VARIABLES END
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<>();
@@ -47,19 +48,24 @@ public class MyProtocol {
         bufferQueue = new LinkedBlockingQueue<>();
         mediumAccessControl = new MediumAccessControl();
 
+        myAddress = new Random().nextInt(14) + 1;
+        forwarding = new Forwarding(myAddress);
+        step = 0;
+
+
         // Give the client the Queues to use
-        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
+        new Client(server_ip, server_port, frequency, receivedQueue, sendingQueue);
 
         // Start thread to handle received messages!
-        new receiveThread(receivedQueue, forwardingTable).start();
+        new receiveThread(receivedQueue, forwarding).start();
 
-        // handle sending from stdin from this thread.
+        // Read input from user
         try {
-            Scanner console = new Scanner(System.in);
+            Scanner scanner = new Scanner(System.in);
             String input = "";
             boolean quit = false;
             while (!quit) {
-                input = console.nextLine(); // read input
+                input = scanner.nextLine();
                 quit = inputParser(input);
             }
         } catch (Exception e) {
@@ -123,9 +129,9 @@ public class MyProtocol {
                 int destination = 1; // TODO Change later into dynamic!!!
                 try {
                     if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                        bufferQueue.put(createDataPkt(myAdress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt));
+                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt));
                     } else {
-                        bufferQueue.put(createDataPkt(myAdress, destination, PACKET_TYPE_SENDING, tmpPkt.length, i, tmpPkt));
+                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, tmpPkt.length, i, tmpPkt));
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -135,7 +141,7 @@ public class MyProtocol {
         } else {
             int destination = 0; // TODO CHANGE THIS
             try {
-                bufferQueue.put(createDataPkt(myAdress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
+                bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -144,7 +150,7 @@ public class MyProtocol {
         try {
             if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
                 byte[] rtsPacketValues;
-                rtsPacketValues = createDataShortPkt(myAdress, 0, 0);
+                rtsPacketValues = createDataShortPkt(myAddress, 0, 0);
 
                 ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
                 toSend.put(rtsPacketValues);
