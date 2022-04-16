@@ -74,8 +74,8 @@ public class Packet {
         if (type == MessageType.DATA) {
             source = bitExtracted(msg[0], 4, 4);
             destination = bitExtracted(msg[0], 4, 0);
-            packetType = bitExtracted(msg[1], 2, 0);
-            dataLen = bitExtracted(msg[1], 6, 2);
+            packetType = bitExtracted(msg[1], 2, 6);
+            dataLen = bitExtracted(msg[1], 6, 0);
             seqNr = msg[2];
             System.arraycopy(msg, 3, data, 0, msg.length - 3);
         } else if (type == MessageType.DATA_SHORT) {
@@ -127,7 +127,13 @@ public class Packet {
             pkt[1] = typeAndData;
             pkt[2] = (byte) seqNr;
             int j = 0;
-            for(int i = 3; i < 32; i++){
+            int len;
+            if(getDataLen() < 29) {
+                len = getDataLen() + 3;
+            } else {
+                len = 32;
+            }
+            for(int i = 3; i < len; i++){
                 pkt[i] = data[j];
                 j++;
             }

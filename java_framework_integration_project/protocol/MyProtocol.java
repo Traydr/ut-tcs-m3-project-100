@@ -10,52 +10,57 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * This is just some example code to show you how to interact with the server using the provided
- * 'Client' class and two queues. Feel free to modify this code in any way you like!
- */
-
 public class MyProtocol {
-
+    // FRAMEWORK START
     // The host to connect to. Set this to localhost when using the audio interface tool.
-    private static String SERVER_IP = "netsys.ewi.utwente.nl"; //"127.0.0.1";
+    private static final String SERVER_IP = "netsys.ewi.utwente.nl"; //"127.0.0.1";
     // The port to connect to. 8954 for the simulation server.
-    private static int SERVER_PORT = 8954;
-    private static Random random = new Random();
-    private static int myAdress = random.nextInt(14) + 1;
-    private static int step = 0;
+    private static final int SERVER_PORT = 8954;
     // The frequency to use.
     private static int frequency = 10500;
-    private Forwarding forwardingTable = new Forwarding(myAdress);
-
+    // FRAMEWORK END
+    // CONSTANTS START
+    private static final int DATA_PACKET_LENGTH = 32;
+    private static final int DATA_SHORT_PACKET_LENGTH = 2;
+    private static final int DATA_DATA_LENGTH = 29;
+    private static final int PACKET_TYPE_SENDING = 0;
+    private static final int PACKET_TYPE_FORWARDING = 1;
+    private static final int PACKET_TYPE_DONE_SENDING = 2;
+    // CONSTANTS END
+    // GLOBAL VARIABLES START
+    private static int myAddress;
+    private static int step;
+    private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mediumAccessControl;
-    private Packet packet;
-    private TextSplit textSplit;
+    // GLOBAL VARIABLES END
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
-        receivedQueue = new LinkedBlockingQueue<Message>();
-        sendingQueue = new LinkedBlockingQueue<Message>();
+        receivedQueue = new LinkedBlockingQueue<>();
+        sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
         mediumAccessControl = new MediumAccessControl();
-        packet = new Packet();
-        textSplit = new TextSplit();
+
+        myAddress = new Random().nextInt(14) + 1;
+        forwarding = new Forwarding(myAddress);
+        step = 0;
+
 
         // Give the client the Queues to use
-        new Client(SERVER_IP, SERVER_PORT, frequency, receivedQueue, sendingQueue);
+        new Client(server_ip, server_port, frequency, receivedQueue, sendingQueue);
 
         // Start thread to handle received messages!
-        new receiveThread(receivedQueue, forwardingTable).start();
+        new receiveThread(receivedQueue).start();
 
-        // handle sending from stdin from this thread.
+        // Read input from user
         try {
-            Scanner console = new Scanner(System.in);
+            Scanner scanner = new Scanner(System.in);
             String input = "";
             boolean quit = false;
             while (!quit) {
-                input = console.nextLine(); // read input
+                input = scanner.nextLine();
                 quit = inputParser(input);
             }
         } catch (Exception e) {
@@ -63,6 +68,12 @@ public class MyProtocol {
         }
     }
 
+    /**
+     * Parser through the input we get from the user
+     *
+     * @param input Input from the user
+     * @return If quit then true, otherwise false
+     */
     private boolean inputParser(String input) {
         String[] parsedInput = input.split(" ");
         switch (parsedInput[0].toLowerCase()) {
@@ -80,90 +91,7 @@ public class MyProtocol {
                 for (int i = 1; i < parsedInput.length; i++) {
                     chat.append(parsedInput[i]).append(" ");
                 }
-                byte[] data;
-                data = textSplit.textToBytes(String.valueOf(chat));
-                if (data.length > 29) {
-                    Packet makePkt = new Packet();
-                    makePkt.setSource(5);
-                    makePkt.setDestination(2);
-                    makePkt.setPacketType(0);
-                    makePkt.setDataLen(data.length);
-
-                    int i = 0;
-                    ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
-                    for (ArrayList<Byte> pktArrayList : splitBytes) {
-                        if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                            makePkt.setPacketType(2);
-                        }
-                        byte[] temppkt = new byte[29];
-                        int k = 0;
-                        for (byte b : pktArrayList) {
-                            temppkt[k] = b;
-                            k++;
-                        }
-                        makePkt.setData(temppkt);
-                        makePkt.setSeqNr(i);
-                        try {
-                            bufferQueue.put(makePkt.makePkt(MessageType.DATA));
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        i++;
-                    }
-                } else {
-                    Packet makePkt = new Packet();
-                    makePkt.setSource(5);
-                    makePkt.setDestination(2);
-                    makePkt.setPacketType(2);
-                    makePkt.setSeqNr(0);
-                    makePkt.setDataLen(data.length);
-                    ArrayList<ArrayList<Byte>> splitBytes = textSplit.splitTextBytes(data, 29);
-                    for (ArrayList<Byte> pktArrayList : splitBytes) {
-                        byte[] temppkt = new byte[29];
-                        int k = 0;
-                        for (byte b : pktArrayList) {
-                            temppkt[k] = b;
-                            k++;
-                        }
-                        System.out.println(Arrays.toString(temppkt));
-                        makePkt.setData(temppkt);
-                    }
-
-                    try {
-                        bufferQueue.put(makePkt.makePkt(MessageType.DATA));
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                try {
-                    if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
-                        byte[] rtsPacketValues;
-                        Packet tmpPck = new Packet();
-                        tmpPck.setSource(5); // TODO change to client's his src
-                        tmpPck.setDestination(0);
-                        tmpPck.setAckNr(0);
-                        rtsPacketValues = tmpPck.makePkt(MessageType.DATA_SHORT);
-
-                        ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
-                        toSend.put(rtsPacketValues);
-
-                        Message rts;
-                        rts = new Message(MessageType.DATA_SHORT, toSend);
-                        sendingQueue.put(rts);
-
-                        while (bufferQueue.size() > 0) {
-                            toSend = ByteBuffer.allocate(32);
-                            toSend.put(bufferQueue.remove());
-                            Message tempMSG = new Message(MessageType.DATA, toSend);
-                            sendingQueue.put(tempMSG);
-                        }
-                    } else {
-                        printErr("there has a collision occurred");
-                    }
-                } catch (InterruptedException e) {
-                    System.exit(2);
-                }
+                sendNetwork(TextSplit.textToBytes(chat.toString()));
                 break;
             case "list":
                 // TODO call protocol.Forwarding
@@ -172,7 +100,8 @@ public class MyProtocol {
                 printMsg("Commands:" +
                         "\n\tchat - Send messages to others" +
                         "\n\tlist - Show participants in the network" +
-                        "\n\thelp - Show this help message");
+                        "\n\thelp - Show this help message" +
+                        "\n\tquit - quit client");
                 break;
             default:
                 printErr("Incorrect commands, write 'help' for a list of commands");
@@ -181,15 +110,122 @@ public class MyProtocol {
         return false;
     }
 
+    private void sendNetwork(byte[] data) {
+        if (data.length > DATA_DATA_LENGTH) {
+            int i = 0;
+            ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, DATA_DATA_LENGTH);
+            for (ArrayList<Byte> pktArrayList : splitBytes) {
+                byte[] tmpPkt = new byte[pktArrayList.size()];
+                int k = 0;
+                for (byte b : pktArrayList) {
+                    tmpPkt[k] = b;
+                    k++;
+                }
+                int destination = 1; // TODO Change later into dynamic!!!
+                try {
+                    if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
+                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt));
+                    } else {
+                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt));
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                i++;
+            }
+        } else {
+            int destination = 0; // TODO CHANGE THIS
+            try {
+                System.out.println("\t" + Arrays.toString(data) + "\n\tDATA LEN: " + data.length + "\n\tPKT LEN");
+                bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            if (mediumAccessControl.canWeSend(receivedQueue, bufferQueue)) {
+                byte[] rtsPacketValues;
+                rtsPacketValues = createDataShortPkt(myAddress, 0, 0);
+
+                ByteBuffer toSend = ByteBuffer.allocate(rtsPacketValues.length);
+                toSend.put(rtsPacketValues);
+
+                Message rts;
+                rts = new Message(MessageType.DATA_SHORT, toSend);
+                sendingQueue.put(rts);
+
+                while (bufferQueue.size() > 0) {
+                    toSend = ByteBuffer.allocate(DATA_PACKET_LENGTH);
+                    toSend.put(bufferQueue.remove());
+                    Message tempMSG = new Message(MessageType.DATA, toSend);
+                    sendingQueue.put(tempMSG);
+                }
+            } else {
+                printErr("there has a collision occurred");
+            }
+        } catch (InterruptedException e) {
+            System.exit(2);
+        }
+    }
+
+    /**
+     * Creates a data packet based on input
+     *
+     * @param src     Source address
+     * @param dst     Destination address (0 - broadcast all)
+     * @param pktType Packet type (0 - data, 1 - forwarding, 2 - data finished)
+     * @param dataLen Data length
+     * @param seqNr   Sequence number
+     * @param data    Data
+     * @return A byte array of exactly 32 bytes to specification
+     */
+    private byte[] createDataPkt(int src, int dst, int pktType, int dataLen, int seqNr, byte[] data) {
+        Packet pck = new Packet();
+        pck.setSource(src);
+        pck.setDestination(dst);
+        pck.setPacketType(pktType);
+        pck.setDataLen(dataLen);
+        pck.setSeqNr(seqNr);
+        pck.setData(data);
+        return pck.makePkt(MessageType.DATA);
+    }
+
+    /**
+     * Creates a data short packet based on input
+     *
+     * @param src   Source address
+     * @param dst   Destination address (0 - broadcast all)
+     * @param ackNr Acknowledgement number
+     * @return A byte array of exactly 2 bytes to specification
+     */
+    private byte[] createDataShortPkt(int src, int dst, int ackNr) {
+        Packet pck = new Packet();
+        pck.setSource(src);
+        pck.setDestination(dst);
+        pck.setAckNr(ackNr);
+        return pck.makePkt(MessageType.DATA_SHORT);
+    }
+
+    /**
+     * Prints a msg with a '[ERR]' prefix
+     *
+     * @param err Error
+     */
     private void printErr(String err) {
         System.out.println("[ERR] " + err);
     }
 
+    /**
+     * Function to shorthand print
+     *
+     * @param msg Message
+     */
     private void printMsg(String msg) {
         System.out.println(msg);
     }
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         if (args.length > 0) {
             frequency = Integer.parseInt(args[0]);
         }
@@ -202,19 +238,11 @@ public class MyProtocol {
         // Outer integer contains the source address of the packets
         // Inner integer contains the sequence number of the packets
         private HashMap<Integer, HashMap<Integer, Packet>> receivedPackets;
-        private Forwarding dataTable;
 
-        public receiveThread(BlockingQueue<Message> receivedQueue, Forwarding table) {
+        public receiveThread(BlockingQueue<Message> receivedQueue) {
             super();
             this.receivedQueue = receivedQueue;
             this.receivedPackets = new HashMap<>();
-            dataTable = table;
-        }
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            for (int i = 0; i < bytesLength; i++) {
-                System.out.print(Byte.toString(bytes.get(i)) + " ");
-            }
-            System.out.println();
         }
 
         // Handle messages from the server / audio framework
@@ -294,12 +322,10 @@ public class MyProtocol {
                 return;
             }
 
-            if (pck.getPacketType() == 0) {
+            if (pck.getPacketType() == PACKET_TYPE_SENDING) {
                 addPckToHash(pck);
-            } else if (pck.getPacketType() == 1) {
-
-
-            } else if (pck.getPacketType() == 2) {
+            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 addPckToHash(pck);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
@@ -311,19 +337,16 @@ public class MyProtocol {
                     }
                     msgs.add(tmpArr);
                 }
-                TextSplit ts = new TextSplit();
-                reconstructedMessage = ts.arrayOfArrayBackToText(msgs);
+                reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 System.out.println(reconstructedMessage);
 
                 receivedPackets.put(pck.getSource(), new HashMap<>());
             }
-
-            String message = new String(pck.getData(), StandardCharsets.UTF_8);
-            System.out.println(message);
         }
 
         /**
          * Adds an input packet to global hashmap. If it doesn't find an available inner hashmap then it creates a new one
+         *
          * @param pck Packet object
          */
         private void addPckToHash(Packet pck) {
@@ -337,4 +360,3 @@ public class MyProtocol {
         }
     }
 }
-
