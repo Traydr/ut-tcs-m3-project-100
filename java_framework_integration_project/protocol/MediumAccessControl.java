@@ -1,14 +1,17 @@
 package protocol;
 
 import client.Message;
+import client.MessageType;
 
 import java.util.concurrent.BlockingQueue;
 
 public class MediumAccessControl {
     private boolean sentPacket;
+    private MessageType previousMediumState;
 
     public MediumAccessControl() {
         this.sentPacket = false;
+        this.previousMediumState = MessageType.FREE;
     }
 
     /**
@@ -36,6 +39,10 @@ public class MediumAccessControl {
 
     public void haveSentPacket() {
         this.sentPacket = true;
+    }
+
+    public void setPreviousMediumState(MessageType previousMediumState) {
+        this.previousMediumState = previousMediumState;
     }
 }
 

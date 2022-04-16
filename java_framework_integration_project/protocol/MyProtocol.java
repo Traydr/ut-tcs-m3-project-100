@@ -267,6 +267,7 @@ public class MyProtocol {
          * @param received Message object
          */
         private void messageTypeParser(Message received) {
+            mac.setPreviousMediumState(received.getType());
             switch (received.getType()) {
                 case BUSY:
                     // The channel is busy (A node is sending within our detection range)
