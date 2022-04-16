@@ -244,13 +244,6 @@ public class MyProtocol {
             this.receivedPackets = new HashMap<>();
         }
 
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            for (int i = 0; i < bytesLength; i++) {
-                System.out.print(Byte.toString(bytes.get(i)) + " ");
-            }
-            System.out.println();
-        }
-
         // Handle messages from the server / audio framework
         @Override
         public void run() {
