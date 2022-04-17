@@ -133,10 +133,13 @@ public class MyProtocol {
                 int destination = 0; // TODO Change later into dynamic!!!
                 try {
                     if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-
-                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt));
+                        byte[] pckBytes = createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
+                        putPckToUnconfirmed(pckBytes, i, destination);
+                        bufferQueue.put(pckBytes);
                     } else {
-                        bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt));
+                        byte[] pckBytes = createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
+                        putPckToUnconfirmed(pckBytes, i, destination);
+                        bufferQueue.put(pckBytes);
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -146,7 +149,9 @@ public class MyProtocol {
         } else {
             int destination = 0; // TODO CHANGE THIS
             try {
-                bufferQueue.put(createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data));
+                byte[] pckBytes = createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
+                putPckToUnconfirmed(pckBytes, 0, destination);
+                bufferQueue.put(pckBytes);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -162,6 +167,30 @@ public class MyProtocol {
         } else {
             printErr("there has a collision occurred");
         }
+    }
+
+    private void putPckToUnconfirmed(byte[] pck, int seqNr, int destination) {
+        // I know this function has duplicate code, but I don't know how to fix it without making it more complex
+        if (destination == 0) {
+            for (int dest : connectedClients) {
+                if (!unconfirmedPackets.containsKey(dest)) {
+                    HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
+                    unconfirmed.put(seqNr, pck);
+                    unconfirmedPackets.put(dest, unconfirmed);
+                } else {
+                    unconfirmedPackets.get(dest).put(seqNr, pck);
+                }
+            }
+        } else {
+            if (!unconfirmedPackets.containsKey(destination)) {
+                HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
+                unconfirmed.put(seqNr, pck);
+                unconfirmedPackets.put(destination, unconfirmed);
+            } else {
+                unconfirmedPackets.get(destination).put(seqNr, pck);
+            }
+        }
+
     }
 
     /**
