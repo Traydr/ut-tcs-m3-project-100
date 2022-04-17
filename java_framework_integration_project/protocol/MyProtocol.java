@@ -34,7 +34,10 @@ public class MyProtocol {
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mac;
+    // List of connected client source addresses
     private ArrayList<Integer> connectedClients;
+    // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
+    private HashMap<Integer, HashMap<Integer, Packet>> unconfirmedPackets;
     // GLOBAL VARIABLES END
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
@@ -47,6 +50,7 @@ public class MyProtocol {
         forwarding = new Forwarding(myAddress);
         step = 0;
         connectedClients = new ArrayList<>();
+        unconfirmedPackets = new HashMap<>();
 
 
         // Give the client the Queues to use
@@ -156,6 +160,20 @@ public class MyProtocol {
             }
         } else {
             printErr("there has a collision occurred");
+        }
+    }
+
+    /**
+     * Puts a packet to the unconfirmedPackets Hashmap
+     * @param pck Packet obj
+     */
+    protected void putPckToHash(Packet pck, HashMap<Integer, HashMap<Integer, Packet>> globalHash) {
+        if (globalHash.containsKey(pck.getSource())) {
+            globalHash.get(pck.getSource()).put(pck.getSeqNr(), pck);
+        } else {
+            HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
+            tmpSeqPck.put(pck.getSeqNr(), pck);
+            globalHash.put(pck.getSource(), tmpSeqPck);
         }
     }
 
@@ -358,10 +376,14 @@ public class MyProtocol {
             }
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
-                addPckToHash(pck);
+                if (!checkIfPckInHash(pck)) {
+                    putPckToHash(pck, receivedPackets);
+                }
+                sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
-                addPckToHash(pck);
+                putPckToHash(pck, receivedPackets);
+                sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
@@ -380,18 +402,15 @@ public class MyProtocol {
         }
 
         /**
-         * Adds an input packet to global hashmap. If it doesn't find an available inner hashmap then it creates a new one
-         *
-         * @param pck Packet object
+         * Checks if the input packet is already in the hashmap
+         * @param pck Received packet obj
+         * @return True if it is, False otherwise
          */
-        private void addPckToHash(Packet pck) {
+        private boolean checkIfPckInHash(Packet pck) {
             if (receivedPackets.containsKey(pck.getSource())) {
-                receivedPackets.get(pck.getSource()).put(pck.getSeqNr(), pck);
-            } else {
-                HashMap<Integer, Packet> tmpSeqPck = new HashMap<>();
-                tmpSeqPck.put(pck.getSeqNr(), pck);
-                receivedPackets.put(pck.getSource(), tmpSeqPck);
+                return receivedPackets.get(pck.getSource()).containsKey(pck.getSeqNr());
             }
+            return false;
         }
     }
 }
