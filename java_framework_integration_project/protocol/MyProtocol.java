@@ -169,6 +169,13 @@ public class MyProtocol {
         }
     }
 
+    /**
+     * Adds the packet to the unconfirmed hashmap
+     *
+     * @param pck         Packet
+     * @param seqNr       Sequence number of packet
+     * @param destination Destination of packet
+     */
     private void putPckToUnconfirmed(byte[] pck, int seqNr, int destination) {
         // I know this function has duplicate code, but I don't know how to fix it without making it more complex
         if (destination == 0) {
@@ -195,6 +202,7 @@ public class MyProtocol {
 
     /**
      * Send a packet to the network
+     *
      * @param pck byte[] of a fully formed packet
      */
     private void sendPacket(byte[] pck) {
@@ -419,6 +427,7 @@ public class MyProtocol {
 
         /**
          * Puts a packet to the unconfirmedPackets Hashmap
+         *
          * @param pck Packet obj
          */
         protected void putPckToReceived(Packet pck) {
@@ -433,6 +442,7 @@ public class MyProtocol {
 
         /**
          * Checks if the input packet is already in the hashmap
+         *
          * @param pck Received packet obj
          * @return True if it is, False otherwise
          */
