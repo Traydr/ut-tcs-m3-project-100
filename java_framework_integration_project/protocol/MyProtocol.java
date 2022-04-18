@@ -175,6 +175,8 @@ public class MyProtocol {
             while (bufferQueue.size() > 0) {
                 sendPacket(bufferQueue.remove());
             }
+        } else if (bufferQueue.size() == 0) {
+            printErr("Buffer is already empty");
         } else {
             printErr("Medium currently occupied, please [send] later");
         }
@@ -430,6 +432,7 @@ public class MyProtocol {
                     msgs.add(tmpArr);
                 }
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
+                reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
                 receivedPackets.put(pck.getSource(), new HashMap<>());
