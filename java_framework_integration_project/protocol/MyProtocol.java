@@ -105,11 +105,15 @@ public class MyProtocol {
                 connectedClients.forEach((n) -> connections.append("\n\t").append((n)));
                 printMsg("Connected Clients:" + connections);
                 break;
+            case "send":
+                sendBuffer();
+                break;
             case "help":
                 printMsg("Commands:" +
                         "\n\tchat - Send messages to others" +
                         "\n\tlist - Show participants in the network" +
                         "\n\thelp - Show this help message" +
+                        "\n\tsend - Sends all packets currently in the buffer" +
                         "\n\tquit - quit client");
                 break;
             default:
@@ -157,6 +161,13 @@ public class MyProtocol {
             }
         }
 
+        sendBuffer();
+    }
+
+    /**
+     * Send all the packets currently in the buffer
+     */
+    private void sendBuffer() {
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
             sendRts(myAddress, 0, 0);
             mac.haveSentPacket();
@@ -165,7 +176,7 @@ public class MyProtocol {
                 sendPacket(bufferQueue.remove());
             }
         } else {
-            printErr("there has a collision occurred");
+            printErr("Medium currently occupied, please [send] later");
         }
     }
 
