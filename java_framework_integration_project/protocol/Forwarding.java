@@ -1,46 +1,59 @@
 package protocol;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.stream.IntStream;
+
 public class Forwarding {
 
-    final int NODE_COUNT = 4;
+    final int NODE_COUNT = 5;
     int myAddress;
-    int[] sources = new int[4];
+    ArrayList<Node> sources = new ArrayList<>();
     int c = 0;
     int counter;
     int[][] dataTable = new int[NODE_COUNT][NODE_COUNT];
 
-    public Forwarding(int node) {
-        myAddress = node;
-        sources[c] = node;
-        c++;
+    public Forwarding(Node node) {
+     sources.add(node);
+     c++;
+     myAddress = c;
     }
 
-    public void init(int neighbour, int step) {
+    public void init(int neighbour, Packet pkt) {
+        int[][] newData = arrayToMatrix(pkt);
         dataTable[c][neighbour] = 1;
-        if (step > counter){
-            // TODO update datatable with new data
-        } else {
 
+        for (int i = 1; i < NODE_COUNT; i++) {
+            if (dataTable[i][0] < newData[i][0]){
+                System.arraycopy(newData[i], 1, dataTable[i], 1, NODE_COUNT - 1);
+            }
         }
+
+
     }
 
-    public void pathFinding(int[][] forwardingTable) {
-        for (int k = 0; k < NODE_COUNT; k++) {
-            for (int i = 0; i < NODE_COUNT; i++) {
-                for (int j = 0; j < NODE_COUNT; j++) {
+    public void addStep (int step){
+        dataTable[myAddress][0] = step;
+    }
+
+    public int[][] pathFinding(int[][] forwardingTable) {
+        for (int k = 1; k < NODE_COUNT; k++) {
+            for (int i = 1; i < NODE_COUNT; i++) {
+                for (int j = 1; j < NODE_COUNT; j++) {
                     if (i != j && forwardingTable[i][j] == 0) {
                         forwardingTable[i][j] = forwardingTable[i][k] * forwardingTable[k][j];
                     }
                 }
             }
         }
+        return forwardingTable;
     }
 
     public byte[] matrixToArray() {
         byte[] pkt = new byte[NODE_COUNT * NODE_COUNT];
         int count = 0;
-        for (int i = 0; i < NODE_COUNT; i++) {
-            for (int j = 0; j < NODE_COUNT; j++) {
+        for (int i = 1; i < NODE_COUNT; i++) {
+            for (int j = 1; j < NODE_COUNT; j++) {
                 pkt[count] = (byte) dataTable[i][j];
                 count++;
             }
@@ -51,8 +64,8 @@ public class Forwarding {
     public int[][] arrayToMatrix(Packet pck) {
         byte[] data = pck.getData();
         int[][] dataMatrix = new int[NODE_COUNT][NODE_COUNT];
-        for (int i = 0; i < NODE_COUNT; i++) {
-            for (int j = 0; j < NODE_COUNT; j++) {
+        for (int i = 1; i < NODE_COUNT; i++) {
+            for (int j = 1; j < NODE_COUNT; j++) {
                 dataMatrix[i][j] = data[4 * i + j];
             }
         }

@@ -47,10 +47,10 @@ public class MyProtocol {
         mac = new MediumAccessControl();
 
         myAddress = new Random().nextInt(14) + 1;
-        forwarding = new Forwarding(myAddress);
         step = 0;
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
+
 
 
         // Give the client the Queues to use
@@ -393,6 +393,7 @@ public class MyProtocol {
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
+            step++;
             // Checks if our address is already in use
             if (!connectedClients.contains(pck.getSource())) {
                 connectedClients.add(pck.getSource());
@@ -406,7 +407,7 @@ public class MyProtocol {
                 return;
             }
 
-            step++;
+
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
                 return;
@@ -418,6 +419,8 @@ public class MyProtocol {
                 }
                 sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+                forwarding.init(pck.getSource(), pck);
+
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 putPckToReceived(pck);
                 sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
@@ -425,7 +428,6 @@ public class MyProtocol {
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     ArrayList<Byte> tmpArr = new ArrayList<>();
-
                     for (byte b : tmp.getData()) {
                         tmpArr.add(b);
                     }
