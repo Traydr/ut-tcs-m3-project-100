@@ -417,11 +417,11 @@ public class MyProtocol {
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
-                sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
+                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 putPckToReceived(pck);
-                sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
+                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
