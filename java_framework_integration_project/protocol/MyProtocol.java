@@ -34,6 +34,7 @@ public class MyProtocol {
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mac;
+    private ReliableTransfer reliableTransfer;
     // List of connected client source addresses
     private ArrayList<Integer> connectedClients;
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
@@ -45,6 +46,7 @@ public class MyProtocol {
         sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
         mac = new MediumAccessControl();
+        reliableTransfer = new ReliableTransfer();
 
         myAddress = new Random().nextInt(14) + 1;
         forwarding = new Forwarding(myAddress);
@@ -171,7 +173,6 @@ public class MyProtocol {
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
             sendRts(myAddress, 0, 0);
             mac.haveSentPacket();
-
             while (bufferQueue.size() > 0) {
                 sendPacket(bufferQueue.remove());
             }
@@ -465,6 +466,25 @@ public class MyProtocol {
                 return receivedPackets.get(pck.getSource()).containsKey(pck.getSeqNr());
             }
             return false;
+        }
+
+        private void sentAck() throws InterruptedException {
+           if (reliableTransfer.hasReceived(receivedPackets)) {
+               for (int i = 0; i < receivedPackets.size() / 3; i++) {
+                   wait(4000);
+                   Packet srcPacket = receivedPackets.get(myAddress).get(i);
+                   int dest = srcPacket.getSource();
+                   int ackNr = srcPacket.getSeqNr() + 1;
+                   ByteBuffer sending = ByteBuffer.allocate(DATA_SHORT_PACKET_LENGTH);
+                   sending.put(createDataShortPkt(myAddress, dest, ackNr));
+                   System.out.println("packet");
+                   try {
+                       sendingQueue.put(new Message(MessageType.DATA_SHORT, sending));
+                   } catch (InterruptedException e) {
+                       System.exit(2);
+                   }
+               }
+            }
         }
     }
 }
