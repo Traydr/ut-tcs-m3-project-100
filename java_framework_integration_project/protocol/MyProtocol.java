@@ -35,6 +35,7 @@ public class MyProtocol {
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mac;
     private ReliableTransfer reliableTransfer;
+    private TimeOut timeOut;
     // List of connected client source addresses
     private ArrayList<Integer> connectedClients;
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
@@ -47,6 +48,7 @@ public class MyProtocol {
         bufferQueue = new LinkedBlockingQueue<>();
         mac = new MediumAccessControl();
         reliableTransfer = new ReliableTransfer();
+        timeOut = new TimeOut();
 
         myAddress = new Random().nextInt(14) + 1;
         forwarding = new Forwarding(myAddress);
@@ -410,16 +412,22 @@ public class MyProtocol {
             step++;
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
+                if (pck.getDestination() != 0) {
+                    unconfirmedPackets.remove(pck.getAckNr());
+                }
                 return;
             }
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
+                sentAck();
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+                sentAck();
+                timeOut.run();
                 putPckToReceived(pck);
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
@@ -469,7 +477,13 @@ public class MyProtocol {
         }
 
         public void sentAck() {
-
+            if (reliableTransfer.hasReceived(receivedPackets)) {
+                for (int i = 0; i < receivedPackets.size(); i++) {
+                    //sendRts(myAddress, 0, 1);
+                    sendRts(myAddress, receivedPackets.get(0).get(i).getDestination(), receivedPackets.get(0).get(i).getAckNr());
+                    System.out.println("ack sent");
+                }
+            }
         }
     }
 }

@@ -2,13 +2,15 @@ package protocol;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class TimeOut implements Runnable{
     @Override
     public void run() {
-        LocalDateTime then = LocalDateTime.now().plusSeconds(15);
-        while (!(LocalDateTime.now().equals(then))) {
-
+        LocalTime then = LocalTime.now().plusSeconds(15);
+        LocalTime now = LocalTime.now();
+        while (then.isAfter(now)) {
+            now = LocalTime.now();
         }
     }
 }
