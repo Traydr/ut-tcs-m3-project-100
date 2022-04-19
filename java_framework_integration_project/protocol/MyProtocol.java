@@ -468,23 +468,8 @@ public class MyProtocol {
             return false;
         }
 
-        private void sentAck() throws InterruptedException {
-           if (reliableTransfer.hasReceived(receivedPackets)) {
-               for (int i = 0; i < receivedPackets.size() / 3; i++) {
-                   wait(4000);
-                   Packet srcPacket = receivedPackets.get(myAddress).get(i);
-                   int dest = srcPacket.getSource();
-                   int ackNr = srcPacket.getSeqNr() + 1;
-                   ByteBuffer sending = ByteBuffer.allocate(DATA_SHORT_PACKET_LENGTH);
-                   sending.put(createDataShortPkt(myAddress, dest, ackNr));
-                   System.out.println("packet");
-                   try {
-                       sendingQueue.put(new Message(MessageType.DATA_SHORT, sending));
-                   } catch (InterruptedException e) {
-                       System.exit(2);
-                   }
-               }
-            }
+        public void sentAck() {
+
         }
     }
 }
