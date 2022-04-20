@@ -47,7 +47,7 @@ public class MyProtocol {
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
     private HashMap<Integer, HashMap<Integer, byte[]>> unconfirmedPackets;
     // GLOBAL VARIABLES END
-    private ArrayList<Packet> resentPacketList = new ArrayList<>() ;
+    private ArrayList<Packet> resentPacketList = new ArrayList<>();
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<>();
@@ -137,13 +137,13 @@ public class MyProtocol {
 
     private void sendNetwork(byte[] data) {
         // Forwarding packets
-        byte[] forwardMatrix = forwarding.matrixToArray();
-        byte[] forwardPkt = createDataPkt(myAddress.getAddress(), 0, PACKET_TYPE_FORWARDING, forwardMatrix.length, 0, forwardMatrix);
-        try {
-            bufferQueue.put(forwardPkt);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        byte[] forwardMatrix = forwarding.matrixToArray();
+//        byte[] forwardPkt = createDataPkt(myAddress.getAddress(), 0, PACKET_TYPE_FORWARDING, forwardMatrix.length, 0, forwardMatrix);
+//        try {
+//            bufferQueue.put(forwardPkt);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
 
         // Data packets
         if (data.length > DATA_DATA_LENGTH) {
@@ -188,7 +188,6 @@ public class MyProtocol {
         }
 
         sendBuffer();
-
     }
 
     /**
@@ -425,9 +424,6 @@ public class MyProtocol {
          */
         private void packetParser(Packet pck, MessageType msgType) {
             step++;
-
-
-
             // Checks if our address is already in use
             if (!checkIfAddressIsConnected(pck.getSource())) {
                 connectedClients.add(new Node(pck.getSource()));
@@ -441,23 +437,25 @@ public class MyProtocol {
                 return;
             }
 
-
+            // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
                 if (pck.getDestination() == myAddress.getAddress()) {
-                    unconfirmedPackets.remove(pck.getAckNr());
+                    unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
                 }
                 return;
             }
 
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
-                //sentAck();
+                // If the packet isn't already in the hashmap, put it in
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
+
+                // Forwarding
                 if (pck.getSeqNr() == highestSEQ) {
-                    highestSEQ ++;
+                    highestSEQ++;
                 } else {
                     if (pck.getSeqNr() == 0) {
                         highestSEQ = pck.getSeqNr();
@@ -474,30 +472,27 @@ public class MyProtocol {
                     } else {
                         resentValue = 0;
                     }
-
                 }
-
-                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+                // Useless
                 forwarding.init(findNodeByAddress(pck.getSource()), pck);
                 forwarding.addStep(step);
                 forwarding.pathFinding(routingTable);
-
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 timeOut.run();
                 sentAck(pck, highestSEQ);
-
                 if (resentSEQ == pck.getSeqNr() && resentSRC == pck.getSource()) {
                     resentSRC = 0;
                     resentSEQ = 0;
                     return;
-                } else if (msgType == MessageType.DATA) {
+                } else {
                     resentSEQ = pck.getSeqNr();
                     resentSRC = pck.getSource();
                     sendPacket(pck.makePkt(MessageType.DATA));
                 }
+
+                // Put packet to hashmap to be decoded
                 putPckToReceived(pck);
-                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
@@ -510,8 +505,8 @@ public class MyProtocol {
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
-                //timeOut.run();
 
+                // Wipe the hashmap to prepare for the next message
                 receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
@@ -544,14 +539,21 @@ public class MyProtocol {
             return false;
         }
 
+        /**
+         * Sends an Acknowledgement
+         *
+         * @param pck        Packet
+         * @param highestSEQ
+         */
         public void sentAck(Packet pck, int highestSEQ) {
             if (reliableTransfer.hasReceived(receivedPackets)) {
-                    sendRts(myAddress.getAddress(), pck.getSource(), highestSEQ);
+                sendRts(myAddress.getAddress(), pck.getSource(), highestSEQ);
             }
         }
 
         /**
          * Checks if an address is already in the connected arraylist
+         *
          * @param addr Address
          * @return true if connected, false otherwise
          */
@@ -563,6 +565,13 @@ public class MyProtocol {
             }
             return false;
         }
+
+        /**
+         * Finds a node with the same address as input
+         *
+         * @param addr Address of client
+         * @return Node object containing the address
+         */
         private Node findNodeByAddress(int addr) {
             for (Node node : connectedClients) {
                 if (node.getAddress() == addr) {
