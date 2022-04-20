@@ -22,7 +22,7 @@ public class MediumAccessControl {
      * @return True if we can send, otherwise false
      */
     public Boolean canWeSend (BlockingQueue<Message> receivedQueue, BlockingQueue<byte[]> bufferQueue) {
-        if (receivedQueue.size() == 0 && bufferQueue.size() > 0 && previousMediumState != MessageType.BUSY) {
+        if (receivedQueue.size() == 0 && bufferQueue.size() > 0 && previousMediumState == MessageType.FREE) {
             return true;
         }
         return false;
