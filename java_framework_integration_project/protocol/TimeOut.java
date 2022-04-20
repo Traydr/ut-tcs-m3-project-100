@@ -7,7 +7,7 @@ import java.time.LocalTime;
 public class TimeOut implements Runnable{
     @Override
     public void run() {
-        LocalTime then = LocalTime.now().plusSeconds(15);
+        LocalTime then = LocalTime.now().plusSeconds(5);
         LocalTime now = LocalTime.now();
         while (then.isAfter(now)) {
             now = LocalTime.now();
