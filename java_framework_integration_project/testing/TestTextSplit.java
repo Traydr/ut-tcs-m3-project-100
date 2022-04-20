@@ -53,5 +53,19 @@ public class TestTextSplit {
         testArrayOfArray.add(testArray);
         assertEquals("test", TextSplit.arrayOfArrayBackToText(testArrayOfArray, 4));
         assertNotEquals("test", TextSplit.arrayOfArrayBackToText(testArrayOfArray, 3));
+
+        StringBuilder testString = new StringBuilder();
+        byte[] testByteArray = new byte[40];
+        for (int i = 0; i < 10; i++) {
+            testByteArray[i * 4] = 0x74;
+            testByteArray[i * 4 + 1] = 0x65;
+            testByteArray[i * 4 + 2] = 0x73;
+            testByteArray[i * 4 + 3] = 0x74;
+            testString.append("test");
+        }
+        testArrayOfArray = TextSplit.splitTextBytes(testByteArray, 29);
+        int testArrayLastSize = testArrayOfArray.get(testArrayOfArray.size() - 1).size();
+        assertEquals(testString.toString(), TextSplit.arrayOfArrayBackToText(testArrayOfArray, testArrayLastSize));
+        assertNotEquals(testString.toString(), TextSplit.arrayOfArrayBackToText(testArrayOfArray, testArrayLastSize - 1));
     }
 }
