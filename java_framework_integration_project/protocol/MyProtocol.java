@@ -55,7 +55,7 @@ public class MyProtocol {
         bufferQueue = new LinkedBlockingQueue<>();
         mac = new MediumAccessControl();
         reliableTransfer = new ReliableTransfer();
-        timeOut = new TimeOut();
+        timeOut = new TimeOut(5, 10);
 
         myAddress = new Node(new Random().nextInt(14) + 1);
         forwarding = new Forwarding(myAddress);
@@ -193,7 +193,7 @@ public class MyProtocol {
     /**
      * Send all the packets currently in the buffer
      */
-    private void sendBuffer() {
+    protected void sendBuffer() {
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
             if (connectedClients.size() == 0) {
                 connectedClients.add(myAddress);
@@ -439,9 +439,10 @@ public class MyProtocol {
 
             // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
-                // TODO parse data short packets
-                if (pck.getDestination() == myAddress.getAddress()) {
-                    unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
+                if (pck.getDestination() == myAddress.getAddress() && unconfirmedPackets.containsKey(pck.getSource())) {
+                    if (unconfirmedPackets.get(pck.getSource()).containsKey(pck.getAckNr())) {
+                        unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
+                    }
                 }
                 return;
             }
@@ -496,6 +497,13 @@ public class MyProtocol {
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
+                    // Adding packets for retransmission
+                    try {
+                        bufferQueue.put(tmp.makePkt(MessageType.DATA));
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    // Reconstructing the message
                     ArrayList<Byte> tmpArr = new ArrayList<>();
                     for (byte b : tmp.getData()) {
                         tmpArr.add(b);
@@ -505,6 +513,10 @@ public class MyProtocol {
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
+
+                // Retransmit packets
+                new TimeOut(0, 3).run();
+                sendBuffer();
 
                 // Wipe the hashmap to prepare for the next message
                 receivedPackets.put(pck.getSource(), new HashMap<>());
