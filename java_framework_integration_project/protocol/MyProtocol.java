@@ -109,7 +109,7 @@ public class MyProtocol {
                 break;
             case "list":
                 StringBuilder connections = new StringBuilder();
-                connectedClients.forEach((n) -> connections.append("\n\t").append((n)));
+                connectedClients.forEach((n) -> connections.append("\n\t").append((n).getAddress()));
                 printMsg("Connected Clients:" + connections);
                 break;
             case "send":
@@ -436,7 +436,7 @@ public class MyProtocol {
 
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
-                if (pck.getDestination() == myAddress) {
+                if (pck.getDestination() == myAddress.getAddress()) {
                     unconfirmedPackets.remove(pck.getAckNr());
                 }
                 return;
@@ -519,7 +519,7 @@ public class MyProtocol {
 
         public void sentAck(Packet pck, int highestSEQ) {
             if (reliableTransfer.hasReceived(receivedPackets)) {
-                    sendRts(myAddress, pck.getSource(), highestSEQ);
+                    sendRts(myAddress.getAddress(), pck.getSource(), highestSEQ);
                     System.out.println("ack sent");
                 System.out.println(highestSEQ);
             }
