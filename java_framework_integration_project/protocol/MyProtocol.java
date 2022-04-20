@@ -467,9 +467,11 @@ public class MyProtocol {
                 forwarding.addStep(step);
                 forwarding.pathFinding(routingTable);
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
-                if (packetHistory.size() > 0) {
+                if (!packetHistory.isEmpty()) {
                     Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
-                    if (pck.getData() == previousPacket.getData() && pck.getSeqNr() == previousPacket.getSeqNr()) {
+                    if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
+                            && pck.getSeqNr() == previousPacket.getSeqNr()
+                            && pck.getSource() == previousPacket.getSource()) {
                         return;
                     }
                 }
