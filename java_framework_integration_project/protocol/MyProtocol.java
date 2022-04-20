@@ -28,7 +28,8 @@ public class MyProtocol {
     private static int highestSEQ = 0;
     // CONSTANTS END
     // GLOBAL VARIABLES START
-    private static int myAddress;
+    private static Node myAddress;
+    private int[][] routingTable;
     private static int step;
     private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
@@ -38,7 +39,7 @@ public class MyProtocol {
     private ReliableTransfer reliableTransfer;
     private TimeOut timeOut;
     // List of connected client source addresses
-    private ArrayList<Integer> connectedClients;
+    private ArrayList<Node> connectedClients;
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
     private HashMap<Integer, HashMap<Integer, byte[]>> unconfirmedPackets;
     // GLOBAL VARIABLES END
@@ -51,8 +52,9 @@ public class MyProtocol {
         reliableTransfer = new ReliableTransfer();
         timeOut = new TimeOut();
 
-        myAddress = new Random().nextInt(14) + 1;
+        myAddress = new Node(new Random().nextInt(14) + 1);
         forwarding = new Forwarding(myAddress);
+        routingTable = new int[forwarding.NODE_COUNT][forwarding.NODE_COUNT];
         step = 0;
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
@@ -129,6 +131,16 @@ public class MyProtocol {
     }
 
     private void sendNetwork(byte[] data) {
+        // Forwarding packets
+        byte[] forwardMatrix = forwarding.matrixToArray();
+        byte[] forwardPkt = createDataPkt(myAddress.getAddress(), 0, PACKET_TYPE_FORWARDING, forwardMatrix.length, 0, forwardMatrix);
+        try {
+            bufferQueue.put(forwardPkt);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Data packets
         if (data.length > DATA_DATA_LENGTH) {
             int i = 0;
             ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, DATA_DATA_LENGTH);
@@ -142,11 +154,11 @@ public class MyProtocol {
                 int destination = 0; // TODO Change later into dynamic!!!
                 try {
                     if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                        byte[] pckBytes = createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
+                        byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
                         putPckToUnconfirmed(pckBytes, i, destination);
                         bufferQueue.put(pckBytes);
                     } else {
-                        byte[] pckBytes = createDataPkt(myAddress, destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
+                        byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
                         putPckToUnconfirmed(pckBytes, i, destination);
                         bufferQueue.put(pckBytes);
                     }
@@ -162,7 +174,7 @@ public class MyProtocol {
         } else {
             int destination = 0; // TODO CHANGE THIS
             try {
-                byte[] pckBytes = createDataPkt(myAddress, destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
+                byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
                 putPckToUnconfirmed(pckBytes, 0, destination);
                 bufferQueue.put(pckBytes);
             } catch (InterruptedException e) {
@@ -179,7 +191,11 @@ public class MyProtocol {
      */
     private void sendBuffer() {
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
-            sendRts(myAddress, 0, 0);
+            if (connectedClients.size() == 0) {
+                connectedClients.add(myAddress);
+            }
+
+            sendRts(myAddress.getAddress(), 0, 0);
             mac.haveSentPacket();
             while (bufferQueue.size() > 0) {
                 sendPacket(bufferQueue.remove());
@@ -202,13 +218,13 @@ public class MyProtocol {
     private void putPckToUnconfirmed(byte[] pck, int seqNr, int destination) {
         // I know this function has duplicate code, but I don't know how to fix it without making it more complex
         if (destination == 0) {
-            for (int dest : connectedClients) {
-                if (!unconfirmedPackets.containsKey(dest)) {
+            for (Node dest : connectedClients) {
+                if (!unconfirmedPackets.containsKey(dest.getAddress())) {
                     HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
                     unconfirmed.put(seqNr, pck);
-                    unconfirmedPackets.put(dest, unconfirmed);
+                    unconfirmedPackets.put(dest.getAddress(), unconfirmed);
                 } else {
-                    unconfirmedPackets.get(dest).put(seqNr, pck);
+                    unconfirmedPackets.get(dest.getAddress()).put(seqNr, pck);
                 }
             }
         } else {
@@ -403,20 +419,21 @@ public class MyProtocol {
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
+            step++;
             // Checks if our address is already in use
-            if (!connectedClients.contains(pck.getSource())) {
-                connectedClients.add(pck.getSource());
+            if (!checkIfAddressIsConnected(pck.getSource())) {
+                connectedClients.add(new Node(pck.getSource()));
             }
 
-            if (pck.getSource() == myAddress && !mac.isSentPacket()) {
-                while (connectedClients.contains(myAddress)) {
-                    myAddress = new Random().nextInt(14) + 1;
+            if (pck.getSource() == myAddress.getAddress() && !mac.isSentPacket()) {
+                while (checkIfAddressIsConnected(myAddress.getAddress())) {
+                    myAddress.setAddress(new Random().nextInt(14) + 1);
                 }
-            } else if (pck.getSource() == myAddress) {
+            } else if (pck.getSource() == myAddress.getAddress()) {
                 return;
             }
 
-            step++;
+
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
                 if (pck.getDestination() == myAddress) {
@@ -446,6 +463,10 @@ public class MyProtocol {
 
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+                forwarding.init(findNodeByAddress(pck.getSource()), pck);
+                forwarding.addStep(step);
+                forwarding.pathFinding(routingTable);
+
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 sentAck(pck, highestSEQ);
                 //timeOut.run();
@@ -455,7 +476,6 @@ public class MyProtocol {
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     ArrayList<Byte> tmpArr = new ArrayList<>();
-
                     for (byte b : tmp.getData()) {
                         tmpArr.add(b);
                     }
@@ -503,6 +523,28 @@ public class MyProtocol {
                     System.out.println("ack sent");
                 System.out.println(highestSEQ);
             }
+        }
+
+        /**
+         * Checks if an address is already in the connected arraylist
+         * @param addr Address
+         * @return true if connected, false otherwise
+         */
+        private boolean checkIfAddressIsConnected(int addr) {
+            for (Node node : connectedClients) {
+                if (node.getAddress() == addr) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private Node findNodeByAddress(int addr) {
+            for (Node node : connectedClients) {
+                if (node.getAddress() == addr) {
+                    return node;
+                }
+            }
+            return null;
         }
     }
 }
