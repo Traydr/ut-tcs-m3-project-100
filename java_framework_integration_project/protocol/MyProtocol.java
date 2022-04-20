@@ -25,15 +25,19 @@ public class MyProtocol {
     private static final int PACKET_TYPE_SENDING = 0;
     private static final int PACKET_TYPE_FORWARDING = 1;
     private static final int PACKET_TYPE_DONE_SENDING = 2;
+    private static int highestSEQ = 0;
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static Node myAddress;
+    private int[][] routingTable;
     private static int step;
     private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mac;
+    private ReliableTransfer reliableTransfer;
+    private TimeOut timeOut;
     // List of connected client source addresses
     private ArrayList<Node> connectedClients;
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
@@ -45,8 +49,12 @@ public class MyProtocol {
         sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
         mac = new MediumAccessControl();
+        reliableTransfer = new ReliableTransfer();
+        timeOut = new TimeOut();
 
         myAddress = new Node(new Random().nextInt(14) + 1);
+        forwarding = new Forwarding(myAddress);
+        routingTable = new int[forwarding.NODE_COUNT][forwarding.NODE_COUNT];
         step = 0;
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
@@ -157,7 +165,11 @@ public class MyProtocol {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                i++;
+                if (unconfirmedPackets.containsKey(i)) {
+                    return;
+                } else {
+                    i++;
+                }
             }
         } else {
             int destination = 0; // TODO CHANGE THIS
@@ -171,6 +183,7 @@ public class MyProtocol {
         }
 
         sendBuffer();
+
     }
 
     /**
@@ -184,7 +197,6 @@ public class MyProtocol {
 
             sendRts(myAddress.getAddress(), 0, 0);
             mac.haveSentPacket();
-
             while (bufferQueue.size() > 0) {
                 sendPacket(bufferQueue.remove());
             }
@@ -193,6 +205,7 @@ public class MyProtocol {
         } else {
             printErr("Medium currently occupied, please [send] later");
         }
+        timeOut.run();
     }
 
     /**
@@ -423,20 +436,42 @@ public class MyProtocol {
 
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
+                if (pck.getDestination() == myAddress) {
+                    unconfirmedPackets.remove(pck.getAckNr());
+                }
                 return;
             }
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
+                //sentAck();
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
-                sendRts(myAddress.getAddress(), pck.getSource(), pck.getSeqNr() + 1);
+                if (pck.getSeqNr() == highestSEQ) {
+                    highestSEQ ++;
+                } else {
+                    if (pck.getSeqNr() == 0) {
+                        highestSEQ = pck.getSeqNr();
+                        timeOut.run();
+                        sentAck(pck, highestSEQ);
+                    } else {
+                        highestSEQ = pck.getSeqNr() - 1;
+                        timeOut.run();
+                        sentAck(pck, highestSEQ);
+                    }
+                }
+
+                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
-                forwarding.init(pck.getSource(), pck);
+                forwarding.init(findNodeByAddress(pck.getSource()), pck);
+                forwarding.addStep(step);
+                forwarding.pathFinding(routingTable);
 
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+                sentAck(pck, highestSEQ);
+                //timeOut.run();
                 putPckToReceived(pck);
-                sendRts(myAddress.getAddress(), pck.getSource(), pck.getSeqNr() + 1);
+                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
@@ -450,7 +485,7 @@ public class MyProtocol {
                 reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
-                receivedPackets.put(pck.getSource(), new HashMap<>());
+                //receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
 
@@ -482,6 +517,14 @@ public class MyProtocol {
             return false;
         }
 
+        public void sentAck(Packet pck, int highestSEQ) {
+            if (reliableTransfer.hasReceived(receivedPackets)) {
+                    sendRts(myAddress, pck.getSource(), highestSEQ);
+                    System.out.println("ack sent");
+                System.out.println(highestSEQ);
+            }
+        }
+
         /**
          * Checks if an address is already in the connected arraylist
          * @param addr Address
@@ -494,6 +537,14 @@ public class MyProtocol {
                 }
             }
             return false;
+        }
+        private Node findNodeByAddress(int addr) {
+            for (Node node : connectedClients) {
+                if (node.getAddress() == addr) {
+                    return node;
+                }
+            }
+            return null;
         }
     }
 }
