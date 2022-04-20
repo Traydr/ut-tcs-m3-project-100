@@ -27,6 +27,9 @@ public class MyProtocol {
     private static final int PACKET_TYPE_FORWARDING = 1;
     private static final int PACKET_TYPE_DONE_SENDING = 2;
     private static int highestSEQ = 0;
+    private static int resentValue = 0;
+    private static int resentSEQ = 0;
+    private static int resentSRC = 0;
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static Node myAddress;
@@ -401,7 +404,7 @@ public class MyProtocol {
                     System.out.println("[CONNECTED]");
                     break;
                 case SENDING: // This node is sending
-                    System.out.println("[SENDING]");
+                    //System.out.println("[SENDING]");
                     break;
                 case END:
                     // Server / audio framework disconnect message.
@@ -422,6 +425,9 @@ public class MyProtocol {
          */
         private void packetParser(Packet pck, MessageType msgType) {
             step++;
+
+
+
             // Checks if our address is already in use
             if (!checkIfAddressIsConnected(pck.getSource())) {
                 connectedClients.add(new Node(pck.getSource()));
@@ -444,6 +450,7 @@ public class MyProtocol {
                 return;
             }
 
+
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
                 //sentAck();
                 if (!checkIfPckInHash(pck)) {
@@ -461,7 +468,13 @@ public class MyProtocol {
                         timeOut.run();
                         sentAck(pck, highestSEQ);
                     }
+                    if (resentValue == 0) {
                         sendPacket(pck.makePkt(MessageType.DATA));
+                        resentValue++;
+                    } else {
+                        resentValue = 0;
+                    }
+
                 }
 
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
@@ -471,8 +484,18 @@ public class MyProtocol {
                 forwarding.pathFinding(routingTable);
 
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+                timeOut.run();
                 sentAck(pck, highestSEQ);
-                //timeOut.run();
+
+                if (resentSEQ == pck.getSeqNr() && resentSRC == pck.getSource()) {
+                    resentSRC = 0;
+                    resentSEQ = 0;
+                    return;
+                } else if (msgType == MessageType.DATA) {
+                    resentSEQ = pck.getSeqNr();
+                    resentSRC = pck.getSource();
+                    sendPacket(pck.makePkt(MessageType.DATA));
+                }
                 putPckToReceived(pck);
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
@@ -487,13 +510,8 @@ public class MyProtocol {
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
-                timeOut.run();
+                //timeOut.run();
 
-                if (!(resentPacketList.contains(pck))) {
-                    sendPacket(pck.makePkt(MessageType.DATA));
-                } else {
-                    resentPacketList.add(pck);
-                }
                 receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
