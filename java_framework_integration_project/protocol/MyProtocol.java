@@ -375,30 +375,30 @@ public class MyProtocol {
             switch (received.getType()) {
                 case BUSY:
                     // The channel is busy (A node is sending within our detection range)
-                    System.out.println("BUSY");
+                    System.out.print("-> [BUSY]");
                     break;
                 case FREE:
                     // The channel is no longer busy (no nodes are sending within our
                     // detection range)
-                    System.out.println("[FREE]");
+                    System.out.print("-> [FREE]");
                     break;
                 case DATA:
                     // We received a data frame!
-                    System.out.println("[RECEIVED] DATA");
+                    System.out.print("-> [RECEIVED_DATA]");
                     Packet pck = new Packet();
                     pck.decode(received.getData().array(), MessageType.DATA);
                     packetParser(pck, MessageType.DATA);
                     break;
                 case DATA_SHORT:
                     // We received a short data frame!
-                    System.out.println("[RECEIVED] DATA_SHORT");
+                    System.out.print("-> [RECEIVED_DATA_SHORT]");
                     Packet pckShort = new Packet();
                     pckShort.decode(received.getData().array(), MessageType.DATA_SHORT);
                     packetParser(pckShort, MessageType.DATA_SHORT);
                     break;
                 case DONE_SENDING:
                     // This node is done sending
-                    System.out.println("DONE_SENDING");
+                    System.out.print("-> [DONE_SENDING]\n");
                     break;
                 case HELLO:
                     System.out.println("[CONNECTED]");
@@ -508,7 +508,7 @@ public class MyProtocol {
                     msgs.add(tmpArr);
                 }
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
-                reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
+                reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
                 //timeOut.run();
 
@@ -547,8 +547,6 @@ public class MyProtocol {
         public void sentAck(Packet pck, int highestSEQ) {
             if (reliableTransfer.hasReceived(receivedPackets)) {
                     sendRts(myAddress.getAddress(), pck.getSource(), highestSEQ);
-                    System.out.println("ack sent");
-                System.out.println(highestSEQ);
             }
         }
 
