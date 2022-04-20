@@ -485,7 +485,7 @@ public class MyProtocol {
                 reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
-                //receivedPackets.put(pck.getSource(), new HashMap<>());
+                receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
 
