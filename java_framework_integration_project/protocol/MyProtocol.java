@@ -5,6 +5,7 @@ import client.Message;
 import client.MessageType;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,6 +44,7 @@ public class MyProtocol {
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
     private HashMap<Integer, HashMap<Integer, byte[]>> unconfirmedPackets;
     // GLOBAL VARIABLES END
+    private ArrayList<Packet> resentPacketList = new ArrayList<>() ;
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
         receivedQueue = new LinkedBlockingQueue<>();
@@ -244,7 +246,7 @@ public class MyProtocol {
      *
      * @param pck byte[] of a fully formed packet
      */
-    private void sendPacket(byte[] pck) {
+    protected void sendPacket(byte[] pck) {
         ByteBuffer sending = ByteBuffer.allocate(DATA_PACKET_LENGTH);
         sending.put(pck);
         try {
@@ -459,6 +461,7 @@ public class MyProtocol {
                         timeOut.run();
                         sentAck(pck, highestSEQ);
                     }
+                        sendPacket(pck.makePkt(MessageType.DATA));
                 }
 
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
@@ -484,7 +487,13 @@ public class MyProtocol {
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
+                timeOut.run();
 
+                if (!(resentPacketList.contains(pck))) {
+                    sendPacket(pck.makePkt(MessageType.DATA));
+                } else {
+                    resentPacketList.add(pck);
+                }
                 receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
