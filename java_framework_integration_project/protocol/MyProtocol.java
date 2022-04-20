@@ -153,7 +153,11 @@ public class MyProtocol {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                i++;
+                if (unconfirmedPackets.containsKey(i)) {
+                    return;
+                } else {
+                    i++;
+                }
             }
         } else {
             int destination = 0; // TODO CHANGE THIS
@@ -167,6 +171,7 @@ public class MyProtocol {
         }
 
         sendBuffer();
+
     }
 
     /**
@@ -184,6 +189,7 @@ public class MyProtocol {
         } else {
             printErr("Medium currently occupied, please [send] later");
         }
+        timeOut.run();
     }
 
     /**
@@ -413,7 +419,7 @@ public class MyProtocol {
             step++;
             if (msgType == MessageType.DATA_SHORT) {
                 // TODO parse data short packets
-                if (pck.getDestination() != 0) {
+                if (pck.getDestination() == myAddress) {
                     unconfirmedPackets.remove(pck.getAckNr());
                 }
                 return;
@@ -421,17 +427,23 @@ public class MyProtocol {
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
                 //sentAck();
-
-                int i = 0;
-                while (i < receivedPackets.size()) {
-                    if (receivedPackets.get(pck.getSource()).get(i).getSeqNr() > highestSEQ) {
-                        highestSEQ ++;
-                    }
-                    i++;
-                }
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
+                if (pck.getSeqNr() == highestSEQ) {
+                    highestSEQ ++;
+                } else {
+                    if (pck.getSeqNr() == 0) {
+                        highestSEQ = pck.getSeqNr();
+                        timeOut.run();
+                        sentAck(pck, highestSEQ);
+                    } else {
+                        highestSEQ = pck.getSeqNr() - 1;
+                        timeOut.run();
+                        sentAck(pck, highestSEQ);
+                    }
+                }
+
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
