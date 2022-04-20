@@ -419,14 +419,22 @@ public class MyProtocol {
             }
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
-                sentAck();
+                //sentAck();
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
-                sentAck();
+                int highestSEQ = 0;
+                int i = 0;
+                while (i < receivedPackets.size()) {
+                    if (receivedPackets.get(pck.getSource()).get(i).getSeqNr() > highestSEQ) {
+                        highestSEQ ++;
+                    }
+                    i++;
+                }
+                sentAck(pck, highestSEQ);
                 timeOut.run();
                 putPckToReceived(pck);
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
@@ -476,13 +484,10 @@ public class MyProtocol {
             return false;
         }
 
-        public void sentAck() {
+        public void sentAck(Packet pck, int highestSEQ) {
             if (reliableTransfer.hasReceived(receivedPackets)) {
-                for (int i = 0; i < receivedPackets.size(); i++) {
-                    //sendRts(myAddress, 0, 1);
-                    sendRts(myAddress, receivedPackets.get(0).get(i).getDestination(), receivedPackets.get(0).get(i).getAckNr());
+                    sendRts(myAddress, pck.getSource(), highestSEQ);
                     System.out.println("ack sent");
-                }
             }
         }
     }
