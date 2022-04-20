@@ -3,17 +3,21 @@ package protocol;
 import client.Message;
 import client.MessageType;
 
+import java.util.ArrayList;
 import java.util.concurrent.BlockingQueue;
 
 public class MediumAccessControl {
-    private boolean currentlySending;
     private boolean sentPacket;
     private MessageType previousMediumState;
+    private ArrayList<MessageType> sendingTypes;
 
     public MediumAccessControl() {
-        this.currentlySending = false;
         this.sentPacket = false;
         this.previousMediumState = MessageType.FREE;
+        this.sendingTypes = new ArrayList<>();
+        sendingTypes.add(MessageType.FREE);
+        sendingTypes.add(MessageType.DONE_SENDING);
+        sendingTypes.add(MessageType.HELLO);
     }
 
     /**
@@ -22,10 +26,7 @@ public class MediumAccessControl {
      * @return True if we can send, otherwise false
      */
     public Boolean canWeSend (BlockingQueue<Message> receivedQueue, BlockingQueue<byte[]> bufferQueue) {
-        if (receivedQueue.size() == 0 && bufferQueue.size() > 0 && previousMediumState != MessageType.BUSY) {
-            return true;
-        }
-        return false;
+        return receivedQueue.size() == 0 && bufferQueue.size() > 0 && sendingTypes.contains(previousMediumState);
     }
 
     public Boolean receivedMSG (BlockingQueue<Message> receivedQueue) {
@@ -45,10 +46,6 @@ public class MediumAccessControl {
 
     public void setPreviousMediumState(MessageType previousMediumState) {
         this.previousMediumState = previousMediumState;
-    }
-
-    public void setCurrentlySending(boolean currentlySending) {
-        this.currentlySending = currentlySending;
     }
 }
 

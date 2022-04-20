@@ -8,16 +8,22 @@ import java.util.Random;
 public class TimeOut implements Runnable{
     int timeout;
     int random;
+    LocalTime then;
+    LocalTime now;
 
     public TimeOut(int time, int rand) {
         this.timeout = time;
         this.random = rand;
     }
 
+    public void startTimeout() {
+        then = LocalTime.now().plusSeconds(timeout + new Random().nextInt(random));
+        now = LocalTime.now();
+    }
+
     @Override
     public void run() {
-        LocalTime then = LocalTime.now().plusSeconds(timeout + new Random().nextInt(random));
-        LocalTime now = LocalTime.now();
+        startTimeout();
         while (then.isAfter(now)) {
             now = LocalTime.now();
         }

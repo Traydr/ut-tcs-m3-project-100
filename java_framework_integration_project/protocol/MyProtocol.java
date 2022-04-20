@@ -150,26 +150,25 @@ public class MyProtocol {
             int i = 0;
             ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, DATA_DATA_LENGTH);
             for (ArrayList<Byte> pktArrayList : splitBytes) {
+                // change Byte into byte
                 byte[] tmpPkt = new byte[pktArrayList.size()];
                 int k = 0;
                 for (byte b : pktArrayList) {
                     tmpPkt[k] = b;
                     k++;
                 }
-                int destination = 0; // TODO Change later into dynamic!!!
-                try {
-                    if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                        byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
-                        putPckToUnconfirmed(pckBytes, i, destination);
-                        bufferQueue.put(pckBytes);
-                    } else {
-                        byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
-                        putPckToUnconfirmed(pckBytes, i, destination);
-                        bufferQueue.put(pckBytes);
-                    }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+
+                // Create the packets and add to buffer
+                int destination = 0;
+                byte[] pckBytes;
+                if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
+                    pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
+                } else {
+                    pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
                 }
+                putPckToUnconfirmed(pckBytes, i, destination);
+                addPktToBuffer(pckBytes);
+
                 if (unconfirmedPackets.containsKey(i)) {
                     return;
                 } else {
@@ -177,16 +176,11 @@ public class MyProtocol {
                 }
             }
         } else {
-            int destination = 0; // TODO CHANGE THIS
-            try {
-                byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
-                putPckToUnconfirmed(pckBytes, 0, destination);
-                bufferQueue.put(pckBytes);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            int destination = 0;
+            byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
+            putPckToUnconfirmed(pckBytes, 0, destination);
+            addPktToBuffer(pckBytes);
         }
-
         sendBuffer();
     }
 
@@ -194,6 +188,7 @@ public class MyProtocol {
      * Send all the packets currently in the buffer
      */
     protected void sendBuffer() {
+        int bufferTimeOffset = bufferQueue.size() * 2;
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
             if (connectedClients.size() == 0) {
                 connectedClients.add(myAddress);
@@ -209,7 +204,20 @@ public class MyProtocol {
         } else {
             printErr("Medium currently occupied, please [send] later");
         }
-        timeOut.run();
+        new TimeOut(bufferTimeOffset, 2);
+    }
+
+    /**
+     * Adds a packet of type to buffer queue
+     *
+     * @param pkt Packet
+     */
+    protected void addPktToBuffer(byte[] pkt) {
+        try {
+            bufferQueue.put(pkt);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -370,48 +378,42 @@ public class MyProtocol {
          * @param received Message object
          */
         private void messageTypeParser(Message received) {
-            mac.setPreviousMediumState(received.getType());
             switch (received.getType()) {
                 case BUSY:
-                    // The channel is busy (A node is sending within our detection range)
+                    mac.setPreviousMediumState(received.getType());
                     System.out.print("-> [BUSY]");
                     break;
                 case FREE:
-                    // The channel is no longer busy (no nodes are sending within our
-                    // detection range)
-                    System.out.print("-> [FREE]");
+                    mac.setPreviousMediumState(received.getType());
+                    System.out.print("-> [FREE]\n");
                     break;
                 case DATA:
-                    // We received a data frame!
                     System.out.print("-> [RECEIVED_DATA]");
                     Packet pck = new Packet();
                     pck.decode(received.getData().array(), MessageType.DATA);
                     packetParser(pck, MessageType.DATA);
                     break;
                 case DATA_SHORT:
-                    // We received a short data frame!
                     System.out.print("-> [RECEIVED_DATA_SHORT]");
                     Packet pckShort = new Packet();
                     pckShort.decode(received.getData().array(), MessageType.DATA_SHORT);
                     packetParser(pckShort, MessageType.DATA_SHORT);
                     break;
                 case DONE_SENDING:
-                    // This node is done sending
-                    System.out.print("-> [DONE_SENDING]\n");
+                    System.out.print("-> [DONE_SENDING]");
                     break;
                 case HELLO:
                     System.out.println("[CONNECTED]");
                     break;
-                case SENDING: // This node is sending
-                    //System.out.println("[SENDING]");
+                case SENDING:
+                    System.out.print("-> [SENDING]");
                     break;
                 case END:
-                    // Server / audio framework disconnect message.
-                    // You don't have to handle this
                     System.out.println("[END]");
                     System.exit(0);
                     break;
                 default:
+                    printErr("Unrecognised MessageType");
                     break;
             }
         }
@@ -454,55 +456,20 @@ public class MyProtocol {
                     putPckToReceived(pck);
                 }
 
-                // Forwarding
-                if (pck.getSeqNr() == highestSEQ) {
-                    highestSEQ++;
-                } else {
-                    if (pck.getSeqNr() == 0) {
-                        highestSEQ = pck.getSeqNr();
-                        timeOut.run();
-                        sentAck(pck, highestSEQ);
-                    } else {
-                        highestSEQ = pck.getSeqNr() - 1;
-                        timeOut.run();
-                        sentAck(pck, highestSEQ);
-                    }
-                    if (resentValue == 0) {
-                        sendPacket(pck.makePkt(MessageType.DATA));
-                        resentValue++;
-                    } else {
-                        resentValue = 0;
-                    }
-                }
+                addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
                 // Useless
                 forwarding.init(findNodeByAddress(pck.getSource()), pck);
                 forwarding.addStep(step);
                 forwarding.pathFinding(routingTable);
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
-                timeOut.run();
-                sentAck(pck, highestSEQ);
-                if (resentSEQ == pck.getSeqNr() && resentSRC == pck.getSource()) {
-                    resentSRC = 0;
-                    resentSEQ = 0;
-                    return;
-                } else {
-                    resentSEQ = pck.getSeqNr();
-                    resentSRC = pck.getSource();
-                    sendPacket(pck.makePkt(MessageType.DATA));
-                }
-
                 // Put packet to hashmap to be decoded
                 putPckToReceived(pck);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     // Adding packets for retransmission
-                    try {
-                        bufferQueue.put(tmp.makePkt(MessageType.DATA));
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                    addPktToBuffer(tmp.makePkt(MessageType.DATA));
                     // Reconstructing the message
                     ArrayList<Byte> tmpArr = new ArrayList<>();
                     for (byte b : tmp.getData()) {
@@ -515,7 +482,7 @@ public class MyProtocol {
                 System.out.println(reconstructedMessage);
 
                 // Retransmit packets
-                new TimeOut(0, 3).run();
+                new TimeOut(1, 5).run();
                 sendBuffer();
 
                 // Wipe the hashmap to prepare for the next message
