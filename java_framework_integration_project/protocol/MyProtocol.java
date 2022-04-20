@@ -28,6 +28,7 @@ public class MyProtocol {
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static Node myAddress;
+    private int[][] routingTable;
     private static int step;
     private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
@@ -47,6 +48,8 @@ public class MyProtocol {
         mac = new MediumAccessControl();
 
         myAddress = new Node(new Random().nextInt(14) + 1);
+        forwarding = new Forwarding(myAddress);
+        routingTable = new int[forwarding.NODE_COUNT][forwarding.NODE_COUNT];
         step = 0;
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
@@ -432,7 +435,9 @@ public class MyProtocol {
                 }
                 sendRts(myAddress.getAddress(), pck.getSource(), pck.getSeqNr() + 1);
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
-                forwarding.init(pck.getSource(), pck);
+                forwarding.init(findNodeByAddress(pck.getSource()), pck);
+                forwarding.addStep(step);
+                forwarding.pathFinding(routingTable);
 
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 putPckToReceived(pck);
@@ -494,6 +499,14 @@ public class MyProtocol {
                 }
             }
             return false;
+        }
+        private Node findNodeByAddress(int addr) {
+            for (Node node : connectedClients) {
+                if (node.getAddress() == addr) {
+                    return node;
+                }
+            }
+            return null;
         }
     }
 }
