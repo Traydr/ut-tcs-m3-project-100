@@ -8,27 +8,37 @@ classDiagram
     }
     
     class Packet {
+        -int source
+        -int destination
+        -int packetType
+        -int seqNr
+        -int ackNr
+        -int dataLen
+        -byte[] data
+        +decode()
+        +makePkt()
     }
     
     class MediumAccessControl{
-        -int MAX_TIMEOUT
-        -int IDLE_MULTIPLIER    
-        -boolean areWeSending
-        -boolean sentRTS
-        -boolean wasLastSend
-        -int idleCounter
+        -bool sentPacket
+        -MessageType previousMediumState
         
-        +areWeSending(mediumState, localQueueLength)
+        +canWeSend()
     }
     
     class TextSplit{
-        +textToBytes(msg)
-        +splitTextBytes(msg, size)
+        +textToBytes()
+        +splitTextBytes()
+        +arrayOfArrayBackToText()
     }
     
     class Forwarding{
         +init()
-        +pathfinding(forwardingTable)
+        +pathfinding()
+        +addStep()
+        +pathfinding()
+        +matrixToArray()
+        +arrayToMatrix()
     }
     
     class receiveThread{
@@ -37,8 +47,16 @@ classDiagram
         +run()
     }
     
+    class Node{
+        -int address
+    }
+    
     MyProtocol *-- MediumAccessControl
     MyProtocol *-- TextSplit
     MyProtocol *-- Forwarding
     MyProtocol <|-- receiveThread
+    Forwarding *-- Node
+    MyProtocol *-- Node
+    MyProtocol o-- Packet
+    receiveThread o-- Packet
 ```
