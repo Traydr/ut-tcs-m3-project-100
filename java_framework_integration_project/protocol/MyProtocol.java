@@ -25,6 +25,7 @@ public class MyProtocol {
     private static final int PACKET_TYPE_SENDING = 0;
     private static final int PACKET_TYPE_FORWARDING = 1;
     private static final int PACKET_TYPE_DONE_SENDING = 2;
+    private static int highestSEQ = 0;
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static int myAddress;
@@ -420,13 +421,7 @@ public class MyProtocol {
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
                 //sentAck();
-                if (!checkIfPckInHash(pck)) {
-                    putPckToReceived(pck);
-                }
-                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
-            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
-            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
-                int highestSEQ = 0;
+
                 int i = 0;
                 while (i < receivedPackets.size()) {
                     if (receivedPackets.get(pck.getSource()).get(i).getSeqNr() > highestSEQ) {
@@ -434,8 +429,14 @@ public class MyProtocol {
                     }
                     i++;
                 }
+                if (!checkIfPckInHash(pck)) {
+                    putPckToReceived(pck);
+                }
+                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
+            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 sentAck(pck, highestSEQ);
-                timeOut.run();
+                //timeOut.run();
                 putPckToReceived(pck);
                 //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
@@ -452,7 +453,7 @@ public class MyProtocol {
                 reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
-                receivedPackets.put(pck.getSource(), new HashMap<>());
+                //receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
 
@@ -488,6 +489,7 @@ public class MyProtocol {
             if (reliableTransfer.hasReceived(receivedPackets)) {
                     sendRts(myAddress, pck.getSource(), highestSEQ);
                     System.out.println("ack sent");
+                System.out.println(highestSEQ);
             }
         }
     }
