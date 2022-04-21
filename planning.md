@@ -51,9 +51,16 @@ classDiagram
         -int address
     }
     
+    class TimeOut{
+    -boolean isOngoing()
+    +startTimeout()
+    +run()
+    }
+    
     MyProtocol *-- MediumAccessControl
     MyProtocol *-- TextSplit
     MyProtocol *-- Forwarding
+    MyProtocol *-- TimeOut
     MyProtocol <|-- receiveThread
     Forwarding *-- Node
     MyProtocol *-- Node

@@ -17,6 +17,16 @@ public class Forwarding {
      myAddress = node;
     }
 
+    /**
+     * Creates a table that contains information about relations between nodes
+     * also it updates the current table with new data if it is the case
+     *
+     * if dataTable[i][j] == 1 there is a direct path between i and j
+     * else if dataTable[i][j] == 0 nodes i and j are not linked
+     *
+     * @param neighbour
+     * @param pkt
+     */
     public void init(Node neighbour, Packet pkt) {
         int[][] newData = arrayToMatrix(pkt);
         dataTable[sources.indexOf(myAddress) + 1][sources.indexOf(neighbour) + 1] = 1;
@@ -30,10 +40,19 @@ public class Forwarding {
 
     }
 
+    /**
+     * Adds a control element to column 0
+     *
+     * @param step
+     */
     public void addStep (int step){
         dataTable[sources.indexOf(myAddress)][0] = step;
     }
 
+    /**
+     * Computes the path Matrix, containing the necessary data for routing
+     * @param forwardingTable
+     */
     public void pathFinding(int[][] forwardingTable) {
         for (int k = 1; k < NODE_COUNT; k++) {
             for (int i = 1; i < NODE_COUNT; i++) {
@@ -46,6 +65,11 @@ public class Forwarding {
         }
     }
 
+    /**
+     * Codes the dataTable in an array of bytes, to be included in the packet
+     *
+     * @return The byte array
+     */
     public byte[] matrixToArray() {
         byte[] pkt = new byte[NODE_COUNT * NODE_COUNT];
         int count = 0;
@@ -58,6 +82,13 @@ public class Forwarding {
         return pkt;
     }
 
+
+    /**
+     * Decodes the incoming packet
+     *
+     * @param pck
+     * @return the dataMatrix of the packet
+     */
     public int[][] arrayToMatrix(Packet pck) {
         byte[] data = pck.getData();
         int[][] dataMatrix = new int[NODE_COUNT][NODE_COUNT];

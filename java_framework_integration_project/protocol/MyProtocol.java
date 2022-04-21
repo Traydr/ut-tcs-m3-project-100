@@ -5,6 +5,7 @@ import client.Message;
 import client.MessageType;
 
 import java.nio.ByteBuffer;
+import java.sql.Time;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -25,19 +26,14 @@ public class MyProtocol {
     private static final int PACKET_TYPE_SENDING = 0;
     private static final int PACKET_TYPE_FORWARDING = 1;
     private static final int PACKET_TYPE_DONE_SENDING = 2;
-    private static int highestSEQ = 0;
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static Node myAddress;
-    private int[][] routingTable;
-    private static int step;
-    private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mac;
-    private ReliableTransfer reliableTransfer;
-    private TimeOut timeOut;
+    private TimeOut bufferTimeOut;
     // List of connected client source addresses
     private ArrayList<Node> connectedClients;
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
@@ -49,22 +45,17 @@ public class MyProtocol {
         sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
         mac = new MediumAccessControl();
-        reliableTransfer = new ReliableTransfer();
-        timeOut = new TimeOut();
+        bufferTimeOut = new TimeOut(5, 10, this, 0);
 
         myAddress = new Node(new Random().nextInt(14) + 1);
-        forwarding = new Forwarding(myAddress);
-        routingTable = new int[forwarding.NODE_COUNT][forwarding.NODE_COUNT];
-        step = 0;
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
-
 
         // Give the client the Queues to use
         new Client(server_ip, server_port, frequency, receivedQueue, sendingQueue);
 
         // Start thread to handle received messages!
-        new receiveThread(receivedQueue).start();
+        new receiveThread(receivedQueue, this).start();
 
         // Read input from user
         try {
@@ -108,8 +99,9 @@ public class MyProtocol {
                 sendNetwork(TextSplit.textToBytes(chat.toString()));
                 break;
             case "list":
+                // Lists known connections by going through connectedClients arraylist
                 StringBuilder connections = new StringBuilder();
-                connectedClients.forEach((n) -> connections.append("\n\t").append((n)));
+                connectedClients.forEach((n) -> connections.append("\n\t").append((n).getAddress()));
                 printMsg("Connected Clients:" + connections);
                 break;
             case "send":
@@ -131,40 +123,30 @@ public class MyProtocol {
     }
 
     private void sendNetwork(byte[] data) {
-        // Forwarding packets
-        byte[] forwardMatrix = forwarding.matrixToArray();
-        byte[] forwardPkt = createDataPkt(myAddress.getAddress(), 0, PACKET_TYPE_FORWARDING, forwardMatrix.length, 0, forwardMatrix);
-        try {
-            bufferQueue.put(forwardPkt);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
         // Data packets
         if (data.length > DATA_DATA_LENGTH) {
             int i = 0;
             ArrayList<ArrayList<Byte>> splitBytes = TextSplit.splitTextBytes(data, DATA_DATA_LENGTH);
             for (ArrayList<Byte> pktArrayList : splitBytes) {
+                // change Byte into byte
                 byte[] tmpPkt = new byte[pktArrayList.size()];
                 int k = 0;
                 for (byte b : pktArrayList) {
                     tmpPkt[k] = b;
                     k++;
                 }
-                int destination = 0; // TODO Change later into dynamic!!!
-                try {
-                    if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                        byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
-                        putPckToUnconfirmed(pckBytes, i, destination);
-                        bufferQueue.put(pckBytes);
-                    } else {
-                        byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
-                        putPckToUnconfirmed(pckBytes, i, destination);
-                        bufferQueue.put(pckBytes);
-                    }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+
+                // Create the packets and add to buffer
+                int destination = 0;
+                byte[] pckBytes;
+                if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
+                    pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
+                } else {
+                    pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
                 }
+                putPckToUnconfirmed(pckBytes, i, destination);
+                addPktToBuffer(pckBytes);
+
                 if (unconfirmedPackets.containsKey(i)) {
                     return;
                 } else {
@@ -172,29 +154,39 @@ public class MyProtocol {
                 }
             }
         } else {
-            int destination = 0; // TODO CHANGE THIS
-            try {
-                byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
-                putPckToUnconfirmed(pckBytes, 0, destination);
-                bufferQueue.put(pckBytes);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            int destination = 0;
+            byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
+            putPckToUnconfirmed(pckBytes, 0, destination);
+            addPktToBuffer(pckBytes);
         }
-
         sendBuffer();
+    }
 
+    public void timeoutEntry(int type) {
+        if (type == 1) {
+            sendBuffer();
+        }
     }
 
     /**
      * Send all the packets currently in the buffer
      */
-    private void sendBuffer() {
+    protected void sendBuffer() {
+        // If the client is still on time out print this error
+        if (bufferTimeOut.isOngoing()) {
+            printErr("Buffer Time out still ongoing");
+            return;
+        }
+
+        // Time for buffer time out
+        int bufferTimeOffset = bufferQueue.size() * 2;
+        // Checks if the medium is free
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
             if (connectedClients.size() == 0) {
                 connectedClients.add(myAddress);
             }
 
+            // Send a rts before sending the buffer
             sendRts(myAddress.getAddress(), 0, 0);
             mac.haveSentPacket();
             while (bufferQueue.size() > 0) {
@@ -205,7 +197,23 @@ public class MyProtocol {
         } else {
             printErr("Medium currently occupied, please [send] later");
         }
-        timeOut.run();
+        // Start the buffer timeout
+        bufferTimeOut = new TimeOut(bufferTimeOffset, 2, this, 0);
+        Thread bufferTo = new Thread(bufferTimeOut);
+        bufferTo.start();
+    }
+
+    /**
+     * Adds a packet to buffer queue
+     *
+     * @param pkt Packet
+     */
+    protected void addPktToBuffer(byte[] pkt) {
+        try {
+            bufferQueue.put(pkt);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -218,7 +226,9 @@ public class MyProtocol {
     private void putPckToUnconfirmed(byte[] pck, int seqNr, int destination) {
         // I know this function has duplicate code, but I don't know how to fix it without making it more complex
         if (destination == 0) {
+            // This is if we are broadcasting to all
             for (Node dest : connectedClients) {
+                // If the destination doesn't already exist, create a new hashmap
                 if (!unconfirmedPackets.containsKey(dest.getAddress())) {
                     HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
                     unconfirmed.put(seqNr, pck);
@@ -228,6 +238,7 @@ public class MyProtocol {
                 }
             }
         } else {
+            // If the destination doesn't already exist, create a new hashmap
             if (!unconfirmedPackets.containsKey(destination)) {
                 HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
                 unconfirmed.put(seqNr, pck);
@@ -244,7 +255,8 @@ public class MyProtocol {
      *
      * @param pck byte[] of a fully formed packet
      */
-    private void sendPacket(byte[] pck) {
+    protected void sendPacket(byte[] pck) {
+        // Create a byte buffer and send the packet
         ByteBuffer sending = ByteBuffer.allocate(DATA_PACKET_LENGTH);
         sending.put(pck);
         try {
@@ -262,6 +274,7 @@ public class MyProtocol {
      * @param ackNr Acknowledgement number
      */
     private void sendRts(int src, int dst, int ackNr) {
+        // Create a byte buffer and send the data short
         ByteBuffer sending = ByteBuffer.allocate(DATA_SHORT_PACKET_LENGTH);
         sending.put(createDataShortPkt(src, dst, ackNr));
         try {
@@ -340,11 +353,15 @@ public class MyProtocol {
         // Outer integer contains the source address of the packets
         // Inner integer contains the sequence number of the packets
         private HashMap<Integer, HashMap<Integer, Packet>> receivedPackets;
+        private MyProtocol myProtocol;
+        private ArrayList<Packet> packetHistory;
 
-        public receiveThread(BlockingQueue<Message> receivedQueue) {
+        public receiveThread(BlockingQueue<Message> receivedQueue, MyProtocol myProtocol) {
             super();
             this.receivedQueue = receivedQueue;
             this.receivedPackets = new HashMap<>();
+            this.myProtocol = myProtocol;
+            packetHistory = new ArrayList<>();
         }
 
         // Handle messages from the server / audio framework
@@ -366,48 +383,46 @@ public class MyProtocol {
          * @param received Message object
          */
         private void messageTypeParser(Message received) {
-            mac.setPreviousMediumState(received.getType());
             switch (received.getType()) {
                 case BUSY:
-                    // The channel is busy (A node is sending within our detection range)
-                    System.out.println("BUSY");
+                    // Sets the state in our medium control
+                    mac.setPreviousMediumState(received.getType());
+                    System.out.print("-> [BUSY]");
                     break;
                 case FREE:
-                    // The channel is no longer busy (no nodes are sending within our
-                    // detection range)
-                    System.out.println("[FREE]");
+                    // Sets the state in our medium control
+                    mac.setPreviousMediumState(received.getType());
+                    System.out.print("-> [FREE]\n");
                     break;
                 case DATA:
-                    // We received a data frame!
-                    System.out.println("[RECEIVED] DATA");
+                    System.out.print("-> [RECEIVED_DATA]");
+                    // Create a packet and decode it into a Packet object
                     Packet pck = new Packet();
                     pck.decode(received.getData().array(), MessageType.DATA);
                     packetParser(pck, MessageType.DATA);
                     break;
                 case DATA_SHORT:
-                    // We received a short data frame!
-                    System.out.println("[RECEIVED] DATA_SHORT");
+                    // Create a packet and decode it into a packet object
+                    System.out.print("-> [RECEIVED_DATA_SHORT]");
                     Packet pckShort = new Packet();
                     pckShort.decode(received.getData().array(), MessageType.DATA_SHORT);
                     packetParser(pckShort, MessageType.DATA_SHORT);
                     break;
                 case DONE_SENDING:
-                    // This node is done sending
-                    System.out.println("DONE_SENDING");
+                    System.out.print("-> [DONE_SENDING]");
                     break;
                 case HELLO:
                     System.out.println("[CONNECTED]");
                     break;
-                case SENDING: // This node is sending
-                    System.out.println("[SENDING]");
+                case SENDING:
+                    System.out.print("-> [SENDING]");
                     break;
                 case END:
-                    // Server / audio framework disconnect message.
-                    // You don't have to handle this
                     System.out.println("[END]");
                     System.exit(0);
                     break;
                 default:
+                    printErr("Unrecognised MessageType");
                     break;
             }
         }
@@ -419,62 +434,57 @@ public class MyProtocol {
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
-            step++;
             // Checks if our address is already in use
             if (!checkIfAddressIsConnected(pck.getSource())) {
                 connectedClients.add(new Node(pck.getSource()));
             }
 
+            // If we get a packet with the same address as the one we currently use, and we haven't sent the packet
+            // Then we compute a new address that isn't already in our connected clients list
             if (pck.getSource() == myAddress.getAddress() && !mac.isSentPacket()) {
                 while (checkIfAddressIsConnected(myAddress.getAddress())) {
                     myAddress.setAddress(new Random().nextInt(14) + 1);
                 }
+                // If it's our address then we ignore the packet
             } else if (pck.getSource() == myAddress.getAddress()) {
                 return;
             }
 
-
+            // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
-                // TODO parse data short packets
-                if (pck.getDestination() == myAddress) {
-                    unconfirmedPackets.remove(pck.getAckNr());
+                if (pck.getDestination() == myAddress.getAddress() && unconfirmedPackets.containsKey(pck.getSource())) {
+                    unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
                 }
                 return;
             }
 
+
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
-                //sentAck();
+                // If the packet isn't already in the hashmap, put it in
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
-                if (pck.getSeqNr() == highestSEQ) {
-                    highestSEQ ++;
-                } else {
-                    if (pck.getSeqNr() == 0) {
-                        highestSEQ = pck.getSeqNr();
-                        timeOut.run();
-                        sentAck(pck, highestSEQ);
-                    } else {
-                        highestSEQ = pck.getSeqNr() - 1;
-                        timeOut.run();
-                        sentAck(pck, highestSEQ);
+                addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
+            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+                // If our packet history is not empty, check that the packet we just received isn't the same as
+                // the previous one we received. If it's the same ignore it.
+                if (!packetHistory.isEmpty()) {
+                    Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
+                    if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
+                            && pck.getSeqNr() == previousPacket.getSeqNr()
+                            && pck.getSource() == previousPacket.getSource()) {
+                        return;
                     }
                 }
 
-                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
-            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
-                forwarding.init(findNodeByAddress(pck.getSource()), pck);
-                forwarding.addStep(step);
-                forwarding.pathFinding(routingTable);
-
-            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
-                sentAck(pck, highestSEQ);
-                //timeOut.run();
+                // Put packet to hashmap to be decoded
                 putPckToReceived(pck);
-                //sendRts(myAddress, pck.getSource(), pck.getSeqNr() + 1);
                 String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
+                    // Adding packets for retransmission
+                    addPktToBuffer(tmp.makePkt(MessageType.DATA));
+                    // Reconstructing the message
                     ArrayList<Byte> tmpArr = new ArrayList<>();
                     for (byte b : tmp.getData()) {
                         tmpArr.add(b);
@@ -482,10 +492,17 @@ public class MyProtocol {
                     msgs.add(tmpArr);
                 }
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
-                reconstructedMessage = "[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
+                reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
-                //receivedPackets.put(pck.getSource(), new HashMap<>());
+                // Retransmit packets
+                packetHistory.add(pck);
+                TimeOut retransmit = new TimeOut(3, 3, myProtocol, 1);
+                Thread ret = new Thread(retransmit);
+                ret.start();
+
+                // Wipe the hashmap to prepare for the next message
+                receivedPackets.put(pck.getSource(), new HashMap<>());
             }
         }
 
@@ -517,16 +534,9 @@ public class MyProtocol {
             return false;
         }
 
-        public void sentAck(Packet pck, int highestSEQ) {
-            if (reliableTransfer.hasReceived(receivedPackets)) {
-                    sendRts(myAddress, pck.getSource(), highestSEQ);
-                    System.out.println("ack sent");
-                System.out.println(highestSEQ);
-            }
-        }
-
         /**
          * Checks if an address is already in the connected arraylist
+         *
          * @param addr Address
          * @return true if connected, false otherwise
          */
@@ -537,14 +547,6 @@ public class MyProtocol {
                 }
             }
             return false;
-        }
-        private Node findNodeByAddress(int addr) {
-            for (Node node : connectedClients) {
-                if (node.getAddress() == addr) {
-                    return node;
-                }
-            }
-            return null;
         }
     }
 }
