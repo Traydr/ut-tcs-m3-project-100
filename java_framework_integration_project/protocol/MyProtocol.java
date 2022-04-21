@@ -51,7 +51,6 @@ public class MyProtocol {
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
 
-
         // Give the client the Queues to use
         new Client(server_ip, server_port, frequency, receivedQueue, sendingQueue);
 
@@ -100,6 +99,7 @@ public class MyProtocol {
                 sendNetwork(TextSplit.textToBytes(chat.toString()));
                 break;
             case "list":
+                // Lists known connections by going through connectedClients arraylist
                 StringBuilder connections = new StringBuilder();
                 connectedClients.forEach((n) -> connections.append("\n\t").append((n).getAddress()));
                 printMsg("Connected Clients:" + connections);
@@ -172,17 +172,21 @@ public class MyProtocol {
      * Send all the packets currently in the buffer
      */
     protected void sendBuffer() {
+        // If the client is still on time out print this error
         if (bufferTimeOut.isOngoing()) {
             printErr("Buffer Time out still ongoing");
             return;
         }
 
+        // Time for buffer time out
         int bufferTimeOffset = bufferQueue.size() * 2;
+        // Checks if the medium is free
         if (mac.canWeSend(receivedQueue, bufferQueue)) {
             if (connectedClients.size() == 0) {
                 connectedClients.add(myAddress);
             }
 
+            // Send a rts before sending the buffer
             sendRts(myAddress.getAddress(), 0, 0);
             mac.haveSentPacket();
             while (bufferQueue.size() > 0) {
@@ -193,13 +197,14 @@ public class MyProtocol {
         } else {
             printErr("Medium currently occupied, please [send] later");
         }
+        // Start the buffer timeout
         bufferTimeOut = new TimeOut(bufferTimeOffset, 2, this, 0);
         Thread bufferTo = new Thread(bufferTimeOut);
         bufferTo.start();
     }
 
     /**
-     * Adds a packet of type to buffer queue
+     * Adds a packet to buffer queue
      *
      * @param pkt Packet
      */
@@ -221,7 +226,9 @@ public class MyProtocol {
     private void putPckToUnconfirmed(byte[] pck, int seqNr, int destination) {
         // I know this function has duplicate code, but I don't know how to fix it without making it more complex
         if (destination == 0) {
+            // This is if we are broadcasting to all
             for (Node dest : connectedClients) {
+                // If the destination doesn't already exist, create a new hashmap
                 if (!unconfirmedPackets.containsKey(dest.getAddress())) {
                     HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
                     unconfirmed.put(seqNr, pck);
@@ -231,6 +238,7 @@ public class MyProtocol {
                 }
             }
         } else {
+            // If the destination doesn't already exist, create a new hashmap
             if (!unconfirmedPackets.containsKey(destination)) {
                 HashMap<Integer, byte[]> unconfirmed = new HashMap<>();
                 unconfirmed.put(seqNr, pck);
@@ -248,6 +256,7 @@ public class MyProtocol {
      * @param pck byte[] of a fully formed packet
      */
     protected void sendPacket(byte[] pck) {
+        // Create a byte buffer and send the packet
         ByteBuffer sending = ByteBuffer.allocate(DATA_PACKET_LENGTH);
         sending.put(pck);
         try {
@@ -265,6 +274,7 @@ public class MyProtocol {
      * @param ackNr Acknowledgement number
      */
     private void sendRts(int src, int dst, int ackNr) {
+        // Create a byte buffer and send the data short
         ByteBuffer sending = ByteBuffer.allocate(DATA_SHORT_PACKET_LENGTH);
         sending.put(createDataShortPkt(src, dst, ackNr));
         try {
@@ -375,20 +385,24 @@ public class MyProtocol {
         private void messageTypeParser(Message received) {
             switch (received.getType()) {
                 case BUSY:
+                    // Sets the state in our medium control
                     mac.setPreviousMediumState(received.getType());
                     System.out.print("-> [BUSY]");
                     break;
                 case FREE:
+                    // Sets the state in our medium control
                     mac.setPreviousMediumState(received.getType());
                     System.out.print("-> [FREE]\n");
                     break;
                 case DATA:
                     System.out.print("-> [RECEIVED_DATA]");
+                    // Create a packet and decode it into a Packet object
                     Packet pck = new Packet();
                     pck.decode(received.getData().array(), MessageType.DATA);
                     packetParser(pck, MessageType.DATA);
                     break;
                 case DATA_SHORT:
+                    // Create a packet and decode it into a packet object
                     System.out.print("-> [RECEIVED_DATA_SHORT]");
                     Packet pckShort = new Packet();
                     pckShort.decode(received.getData().array(), MessageType.DATA_SHORT);
@@ -425,10 +439,13 @@ public class MyProtocol {
                 connectedClients.add(new Node(pck.getSource()));
             }
 
+            // If we get a packet with the same address as the one we currently use, and we haven't sent the packet
+            // Then we compute a new address that isn't already in our connected clients list
             if (pck.getSource() == myAddress.getAddress() && !mac.isSentPacket()) {
                 while (checkIfAddressIsConnected(myAddress.getAddress())) {
                     myAddress.setAddress(new Random().nextInt(14) + 1);
                 }
+                // If it's our address then we ignore the packet
             } else if (pck.getSource() == myAddress.getAddress()) {
                 return;
             }
@@ -448,7 +465,9 @@ public class MyProtocol {
                     putPckToReceived(pck);
                 }
                 addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
-            }  else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+                // If our packet history is not empty, check that the packet we just received isn't the same as
+                // the previous one we received. If it's the same ignore it.
                 if (!packetHistory.isEmpty()) {
                     Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
                     if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0

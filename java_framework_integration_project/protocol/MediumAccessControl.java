@@ -29,13 +29,6 @@ public class MediumAccessControl {
         return receivedQueue.size() == 0 && bufferQueue.size() > 0 && sendingTypes.contains(previousMediumState);
     }
 
-    public Boolean receivedMSG (BlockingQueue<Message> receivedQueue) {
-        if (receivedQueue.size() > 0) {
-            return true;
-        }
-        return false;
-    }
-
     public boolean isSentPacket() {
         return sentPacket;
     }
