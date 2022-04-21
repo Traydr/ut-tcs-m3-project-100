@@ -29,15 +29,10 @@ public class MyProtocol {
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static Node myAddress;
-    private int[][] routingTable;
-    private static int step;
-    private Forwarding forwarding;
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private BlockingQueue<byte[]> bufferQueue;
     private MediumAccessControl mac;
-    private ReliableTransfer reliableTransfer;
-    private TimeOut timeOut;
     private TimeOut bufferTimeOut;
     // List of connected client source addresses
     private ArrayList<Node> connectedClients;
@@ -50,14 +45,9 @@ public class MyProtocol {
         sendingQueue = new LinkedBlockingQueue<>();
         bufferQueue = new LinkedBlockingQueue<>();
         mac = new MediumAccessControl();
-        reliableTransfer = new ReliableTransfer();
-        timeOut = new TimeOut(5, 10, this, 0);
         bufferTimeOut = new TimeOut(5, 10, this, 0);
 
         myAddress = new Node(new Random().nextInt(14) + 1);
-        forwarding = new Forwarding(myAddress);
-        routingTable = new int[forwarding.NODE_COUNT][forwarding.NODE_COUNT];
-        step = 0;
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
 
@@ -430,7 +420,6 @@ public class MyProtocol {
          * @param msgType Packet type, DATA or DATA_SHORT
          */
         private void packetParser(Packet pck, MessageType msgType) {
-            step++;
             // Checks if our address is already in use
             if (!checkIfAddressIsConnected(pck.getSource())) {
                 connectedClients.add(new Node(pck.getSource()));
@@ -447,9 +436,7 @@ public class MyProtocol {
             // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
                 if (pck.getDestination() == myAddress.getAddress() && unconfirmedPackets.containsKey(pck.getSource())) {
-                    if (unconfirmedPackets.get(pck.getSource()).containsKey(pck.getAckNr())) {
-                        unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
-                    }
+                    unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
                 }
                 return;
             }
@@ -461,12 +448,7 @@ public class MyProtocol {
                     putPckToReceived(pck);
                 }
                 addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
-            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
-                // Useless
-                forwarding.init(findNodeByAddress(pck.getSource()), pck);
-                forwarding.addStep(step);
-                forwarding.pathFinding(routingTable);
-            } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
+            }  else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 if (!packetHistory.isEmpty()) {
                     Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
                     if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
@@ -534,18 +516,6 @@ public class MyProtocol {
         }
 
         /**
-         * Sends an Acknowledgement
-         *
-         * @param pck        Packet
-         * @param highestSEQ
-         */
-        public void sentAck(Packet pck, int highestSEQ) {
-            if (reliableTransfer.hasReceived(receivedPackets)) {
-                sendRts(myAddress.getAddress(), pck.getSource(), highestSEQ);
-            }
-        }
-
-        /**
          * Checks if an address is already in the connected arraylist
          *
          * @param addr Address
@@ -558,21 +528,6 @@ public class MyProtocol {
                 }
             }
             return false;
-        }
-
-        /**
-         * Finds a node with the same address as input
-         *
-         * @param addr Address of client
-         * @return Node object containing the address
-         */
-        private Node findNodeByAddress(int addr) {
-            for (Node node : connectedClients) {
-                if (node.getAddress() == addr) {
-                    return node;
-                }
-            }
-            return null;
         }
     }
 }
