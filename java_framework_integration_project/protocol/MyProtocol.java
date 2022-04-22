@@ -26,6 +26,7 @@ public class MyProtocol {
     private static final int PACKET_TYPE_SENDING = 0;
     private static final int PACKET_TYPE_FORWARDING = 1;
     private static final int PACKET_TYPE_DONE_SENDING = 2;
+    private static int pckCounter = 0;
     // CONSTANTS END
     // GLOBAL VARIABLES START
     private static Node myAddress;
@@ -93,10 +94,11 @@ public class MyProtocol {
 
                 // Reassemble message
                 StringBuilder chat = new StringBuilder();
-                for (int i = 1; i < parsedInput.length; i++) {
+                for (int i = 2; i < parsedInput.length; i++) {
                     chat.append(parsedInput[i]).append(" ");
                 }
-                sendNetwork(TextSplit.textToBytes(chat.toString()));
+                int dest = Integer.parseInt(parsedInput[1]);
+                sendNetwork(TextSplit.textToBytes(chat.toString()), dest);
                 break;
             case "list":
                 // Lists known connections by going through connectedClients arraylist
@@ -122,7 +124,7 @@ public class MyProtocol {
         return false;
     }
 
-    private void sendNetwork(byte[] data) {
+    private void sendNetwork(byte[] data, int destination) {
         // Data packets
         if (data.length > DATA_DATA_LENGTH) {
             int i = 0;
@@ -137,7 +139,6 @@ public class MyProtocol {
                 }
 
                 // Create the packets and add to buffer
-                int destination = 0;
                 byte[] pckBytes;
                 if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
                     pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
@@ -147,14 +148,9 @@ public class MyProtocol {
                 putPckToUnconfirmed(pckBytes, i, destination);
                 addPktToBuffer(pckBytes);
 
-                if (unconfirmedPackets.containsKey(i)) {
-                    return;
-                } else {
-                    i++;
-                }
+                i++;
             }
         } else {
-            int destination = 0;
             byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
             putPckToUnconfirmed(pckBytes, 0, destination);
             addPktToBuffer(pckBytes);
@@ -450,10 +446,38 @@ public class MyProtocol {
                 return;
             }
 
+            //check if it is not our destination address nor broadcast to all
+            if (pck.getDestination() != myAddress.getAddress() && pck.getDestination() != 0) {
+                // Retransmit packets
+                if (!packetHistory.isEmpty()) {
+                    Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
+                    if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
+                            && pck.getSeqNr() == previousPacket.getSeqNr()
+                            && pck.getSource() == previousPacket.getSource()) {
+                        return;
+                    }
+                }
+                packetHistory.add(pck);
+                try {
+                    bufferQueue.put(createDataPkt(pck.getSource(), pck.getDestination(), pck.getPacketType(), pck.getDataLen(), pck.getSeqNr(), pck.getData()));
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                TimeOut retransmit = new TimeOut(3, 3, myProtocol, 1);
+                Thread ret = new Thread(retransmit);
+                ret.start();
+                return;
+            }
+
             // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
-                if (pck.getDestination() == myAddress.getAddress() && unconfirmedPackets.containsKey(pck.getSource())) {
+                if ((pck.getDestination() == myAddress.getAddress() || pck.getDestination() == 0) && unconfirmedPackets.containsKey(pck.getSource()) && pckCounter == pck.getAckNr()) {
                     unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
+                    pckCounter++;
+                } else if (pck.getDestination() == 0 && pck.getSeqNr() == 0) {
+                    return;
+                } else {
+                    addPktToBuffer(unconfirmedPackets.get(myAddress).get(pckCounter));
                 }
                 return;
             }
@@ -495,6 +519,9 @@ public class MyProtocol {
                 reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
+                if (pck.getDestination() == myAddress.getAddress()) {
+                    return;
+                }
                 // Retransmit packets
                 packetHistory.add(pck);
                 TimeOut retransmit = new TimeOut(3, 3, myProtocol, 1);
