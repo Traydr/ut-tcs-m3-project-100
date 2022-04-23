@@ -446,28 +446,7 @@ public class MyProtocol {
                 return;
             }
 
-            //check if it is not our destination address nor broadcast to all
-            if (pck.getDestination() != myAddress.getAddress() && pck.getDestination() != 0) {
-                // Retransmit packets
-                if (!packetHistory.isEmpty()) {
-                    Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
-                    if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
-                            && pck.getSeqNr() == previousPacket.getSeqNr()
-                            && pck.getSource() == previousPacket.getSource()) {
-                        return;
-                    }
-                }
-                packetHistory.add(pck);
-                try {
-                    bufferQueue.put(createDataPkt(pck.getSource(), pck.getDestination(), pck.getPacketType(), pck.getDataLen(), pck.getSeqNr(), pck.getData()));
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                TimeOut retransmit = new TimeOut(3, 3, myProtocol, 1);
-                Thread ret = new Thread(retransmit);
-                ret.start();
-                return;
-            }
+
 
             // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
@@ -476,11 +455,35 @@ public class MyProtocol {
                     pckCounter++;
                 } else if (pck.getDestination() == 0 && pck.getSeqNr() == 0) {
                     return;
-                } else {
-                    addPktToBuffer(unconfirmedPackets.get(myAddress).get(pckCounter));
                 }
+//                else {
+//                    addPktToBuffer(unconfirmedPackets.get(myAddress).get(pckCounter));
+//                }
                 return;
             }
+
+            //check if it is not our destination address nor broadcast to all
+//            if (pck.getDestination() != myAddress.getAddress() && pck.getDestination() != 0) {
+//                 Retransmit packets
+//                if (!packetHistory.isEmpty()) {
+//                    Packet previousPacket = packetHistory.get(packetHistory.size() - 1);
+//                    if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
+//                            && pck.getSeqNr() == previousPacket.getSeqNr()
+//                            && pck.getSource() == previousPacket.getSource()) {
+//                        return;
+//                    }
+//                }
+//                packetHistory.add(pck);
+//                try {
+//                    bufferQueue.put(createDataPkt(pck.getSource(), pck.getDestination(), pck.getPacketType(), pck.getDataLen(), pck.getSeqNr(), pck.getData()));
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//                TimeOut retransmit = new TimeOut(3, 3, myProtocol, 1);
+//                Thread ret = new Thread(retransmit);
+//                ret.start();
+//                return;
+//            }
 
 
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
@@ -488,7 +491,7 @@ public class MyProtocol {
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
-                addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
+                addPktToBuffer(createDataShortPkt(myAddress.getAddress(), 0, pck.getSeqNr()));
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 // If our packet history is not empty, check that the packet we just received isn't the same as
                 // the previous one we received. If it's the same ignore it.
@@ -497,6 +500,7 @@ public class MyProtocol {
                     if (Arrays.compare(pck.getData(), previousPacket.getData()) == 0
                             && pck.getSeqNr() == previousPacket.getSeqNr()
                             && pck.getSource() == previousPacket.getSource()) {
+                        packetHistory.remove(packetHistory.size()-1);
                         return;
                     }
                 }
@@ -517,10 +521,9 @@ public class MyProtocol {
                 }
                 reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
-                System.out.println(reconstructedMessage);
-
-                if (pck.getDestination() == myAddress.getAddress()) {
-                    return;
+                System.out.println(myAddress.getAddress());
+                if (pck.getDestination() == myAddress.getAddress() || pck.getDestination() == 0) {
+                    System.out.println(reconstructedMessage);
                 }
                 // Retransmit packets
                 packetHistory.add(pck);
