@@ -119,7 +119,8 @@ public class MyProtocol {
                         "\n\tlist - Show participants in the network" +
                         "\n\thelp - Show this help message" +
                         "\n\tsend - Sends all packets currently in the buffer" +
-                        "\n\tquit - quit client");
+                        "\n\ttable - Prints forwarding table" +
+                        "\n\tquit - Quits client");
                 break;
             default:
                 printErr("Incorrect commands, write 'help' for a list of commands");
@@ -162,7 +163,7 @@ public class MyProtocol {
                 }
                 putPckToUnconfirmed(pckBytes, i, dest);
                 addPktToBuffer(pckBytes);
-                new Thread(new TimeOut(20, 3, this, 2, i)).start();
+                new Thread(new TimeOut(60, 3, this, 2, i)).start();
 
                 if (unconfirmedPackets.containsKey(i)) {
                     return;
@@ -174,7 +175,7 @@ public class MyProtocol {
             byte[] pckBytes = createDataPkt(myAddress.getAddress(), dest, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
             putPckToUnconfirmed(pckBytes, 0, dest);
             addPktToBuffer(pckBytes);
-            new Thread(new TimeOut(20, 3, this, 2, 0)).start();
+            new Thread(new TimeOut(60, 3, this, 2, 0)).start();
         }
         sendBuffer();
     }
@@ -190,6 +191,7 @@ public class MyProtocol {
 
     /**
      * Function where the timeout re-enters the class
+     *
      * @param timeoutInfo Information given by timeout thread
      */
     public void timeoutEntry(ArrayList<Integer> timeoutInfo) {
@@ -213,11 +215,6 @@ public class MyProtocol {
                 break;
             case 3:
                 // This is going to be used for checking if our direct neighbours are still there
-                break;
-            case 4:
-                // Resending RTS so client know we are there
-                addPktToBuffer(createDataShortPkt(myAddress.getAddress(), 0, 0));
-                sendBuffer();
                 break;
             default:
                 // Do nothing
@@ -260,6 +257,7 @@ public class MyProtocol {
                 printErr("Buffer is already empty");
             } else {
                 printErr("Medium currently occupied, please [send] later");
+                new Thread(new TimeOut(6, 9, this, 1));
             }
         }
     }
@@ -476,9 +474,6 @@ public class MyProtocol {
                     break;
                 case HELLO:
                     System.out.println("[CONNECTED]");
-                    addPktToBuffer(createDataShortPkt(myAddress.getAddress(), 0, 0));
-                    sendBuffer();
-                    new Thread(new TimeOut(10, 3, myProtocol, 4)).start();
                     break;
                 case SENDING:
                     System.out.print("-> [SENDING]");
@@ -521,12 +516,12 @@ public class MyProtocol {
                 return;
             }
 
-            if (forwarding.shouldClientRetransmit(pck.getSource(), pck.getDestination())) {
-                addPktToBuffer(pck.makePkt(msgType));
-            }
-
             // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
+                if (forwarding.shouldClientRetransmit(pck.getSource(), pck.getDestination()) && pck.getDestination() != 0) {
+                    addPktToBuffer(pck.makePkt(msgType));
+                }
+
                 if (pck.getDestination() == myAddress.getAddress() && unconfirmedPackets.containsKey(pck.getSource())) {
                     unconfirmedPackets.get(pck.getSource()).remove(pck.getAckNr());
                 }
@@ -559,7 +554,9 @@ public class MyProtocol {
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     // Adding packets for retransmission
-                    //addPktToBuffer(tmp.makePkt(MessageType.DATA));
+                    if (forwarding.shouldClientRetransmit(tmp.getSource(), tmp.getDestination())) {
+                        addPktToBuffer(tmp.makePkt(MessageType.DATA));
+                    }
                     // Reconstructing the message
                     ArrayList<Byte> tmpArr = new ArrayList<>();
                     for (byte b : tmp.getData()) {

@@ -154,6 +154,8 @@ public class ForwardingV2 {
             neighbourList.add((int) data[i]);
         }
 
+        neighbourList.forEach((n) -> addContact(new Node(n)));
+
         contactsNeighbours.set(indexOfSrc, neighbourList);
     }
 
