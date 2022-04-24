@@ -110,6 +110,9 @@ public class MyProtocol {
             case "send":
                 sendBuffer();
                 break;
+            case "table":
+                printMsg(forwarding.toString());
+                break;
             case "help":
                 printMsg("Commands:" +
                         "\n\tchat - Send messages to others" +
@@ -475,7 +478,7 @@ public class MyProtocol {
                     System.out.println("[CONNECTED]");
                     addPktToBuffer(createDataShortPkt(myAddress.getAddress(), 0, 0));
                     sendBuffer();
-                    new Thread(new TimeOut(5, 5, myProtocol, 4)).start();
+                    new Thread(new TimeOut(10, 3, myProtocol, 4)).start();
                     break;
                 case SENDING:
                     System.out.print("-> [SENDING]");

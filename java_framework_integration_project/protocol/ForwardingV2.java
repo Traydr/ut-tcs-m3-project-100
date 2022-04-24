@@ -174,4 +174,22 @@ public class ForwardingV2 {
         }
         return data;
     }
+
+    /**
+     * Returns a visual representation of the forwarding table
+     * @return String
+     */
+    public String toString() {
+        StringBuilder output = new StringBuilder();
+        output.append("Address: ").append(addr.getAddress()).append("\nNeighbour Nodes:");
+        directNeighbours.forEach((n) -> output.append("\n\t").append(n.getAddress()));
+
+        for (Node contact : contacts) {
+            ArrayList<Integer> neighbours = contactsNeighbours.get(getIndexOfAddressInList(contact.getAddress(), contacts));
+            output.append("\nContact Address: ").append(contact.getAddress()).append("\nNeighbour Nodes:");
+            neighbours.forEach((n) -> output.append("\n\t").append(n));
+        }
+
+        return output.toString();
+    }
 }
