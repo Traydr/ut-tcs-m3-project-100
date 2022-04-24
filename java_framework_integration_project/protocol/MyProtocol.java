@@ -235,16 +235,17 @@ public class MyProtocol {
                 while (bufferQueue.size() > 0) {
                     sendPacket(bufferQueue.remove());
                 }
+
+                // Start the buffer timeout
+                bufferTimeOut = new TimeOut(bufferTimeOffset, 2, this, 0);
+                Thread bufferTo = new Thread(bufferTimeOut);
+                bufferTo.start();
             } else if (bufferQueue.size() == 0) {
                 printErr("Buffer is already empty");
             } else {
                 printErr("Medium currently occupied, please [send] later");
             }
         }
-        // Start the buffer timeout
-        bufferTimeOut = new TimeOut(bufferTimeOffset, 2, this, 0);
-        Thread bufferTo = new Thread(bufferTimeOut);
-        bufferTo.start();
     }
 
     /**
