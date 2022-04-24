@@ -46,6 +46,11 @@ public class ForwardingV2 {
             }
         }
 
+        // TODO This needs to be made more foolproof
+        if (contacts.size() != 3) {
+            return true;
+        }
+
         return false;
     }
 
