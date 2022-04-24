@@ -152,6 +152,7 @@ public class MyProtocol {
                 }
                 putPckToUnconfirmed(pckBytes, i, dest);
                 addPktToBuffer(pckBytes);
+                new Thread(new TimeOut(20, 3, this, 2, i));
 
                 if (unconfirmedPackets.containsKey(i)) {
                     return;
@@ -163,9 +164,9 @@ public class MyProtocol {
             byte[] pckBytes = createDataPkt(myAddress.getAddress(), dest, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
             putPckToUnconfirmed(pckBytes, 0, dest);
             addPktToBuffer(pckBytes);
+            new Thread(new TimeOut(20, 3, this, 2, 0));
         }
         sendBuffer();
-        new Thread(new TimeOut(20, 3, this, 2));
     }
 
     /**
@@ -177,16 +178,22 @@ public class MyProtocol {
         sendNetwork(data, 0);
     }
 
+    /**
+     * Function where the timeout re-enters the class
+     * @param timeoutInfo Information given by timeout thread
+     */
     public void timeoutEntry(ArrayList<Integer> timeoutInfo) {
         switch (timeoutInfo.get(0)) {
             case 1:
                 sendBuffer();
                 break;
             case 2:
-                // Look through unconfirmed packets and resend
-                for (HashMap<Integer, byte[]> destMap : unconfirmedPackets.values()) {
-                    for (byte[] pck : destMap.values()) {
-                        addPktToBuffer(pck);
+                synchronized (unconfirmedPackets) {
+                    // Look through unconfirmed packets and resend
+                    for (HashMap<Integer, byte[]> destMap : unconfirmedPackets.values()) {
+                        if (destMap.containsKey(timeoutInfo.get(1))) {
+                            addPktToBuffer(destMap.get(timeoutInfo.get(1)));
+                        }
                     }
                 }
                 // Attempt to resend

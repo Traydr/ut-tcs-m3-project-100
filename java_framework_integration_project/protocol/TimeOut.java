@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
-public class TimeOut implements Runnable{
+public class TimeOut implements Runnable {
     int timeout;
     int random;
     ArrayList<Integer> timeoutInfo;
@@ -15,8 +15,9 @@ public class TimeOut implements Runnable{
 
     /**
      * Base constructor to be used internally
-     * @param time The least amount of time to wait
-     * @param rand A max random amount of extra time to wait
+     *
+     * @param time     The least amount of time to wait
+     * @param rand     A max random amount of extra time to wait
      * @param protocol MyProcotol
      */
     private TimeOut(int time, int rand, MyProtocol protocol) {
@@ -28,23 +29,29 @@ public class TimeOut implements Runnable{
     }
 
     /**
-     * Constructor to time out for already made arraylists
-     * @param time The least amount of time to wait
-     * @param rand A max random amount of extra time to wait
-     * @param protocol MyProcotol
-     * @param type The type of waiting, plus extra information
+     * Constructor for retransmission of packets
+     *
+     * @param time     Least amount of time to wait
+     * @param rand     Max random amount of time to wait
+     * @param protocol MyProtocol
+     * @param type     Type of waiting
+     * @param pkt      Packet sequence number
      */
-    public TimeOut(int time, int rand, MyProtocol protocol, ArrayList<Integer> type) {
+    public TimeOut(int time, int rand, MyProtocol protocol, int type, int pkt) {
         this(time, rand, protocol);
-        this.timeoutInfo = type;
+        ArrayList<Integer> info = new ArrayList<>();
+        info.add(type);
+        info.add(pkt);
+        timeoutInfo = info;
     }
 
     /**
      * Constructor for single integers
-     * @param time The least amount of time to wait
-     * @param rand A max random amount of extra time to wait
+     *
+     * @param time     The least amount of time to wait
+     * @param rand     A max random amount of extra time to wait
      * @param protocol MyProcotol
-     * @param type The type of waiting
+     * @param type     The type of waiting
      */
     public TimeOut(int time, int rand, MyProtocol protocol, int type) {
         this(time, rand, protocol);
@@ -63,6 +70,7 @@ public class TimeOut implements Runnable{
 
     /**
      * Checks if the timeout has elapsed yet
+     *
      * @return true if it hasn't elapsed, false otherwise
      */
     public boolean isOngoing() {
