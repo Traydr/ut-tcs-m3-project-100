@@ -35,37 +35,57 @@ public class ForwardingV2 {
     public boolean shouldClientRetransmit(int src, int dst) {
         if (src == addr.getAddress() || dst == addr.getAddress()) {
             return false;
-        } else if (dst == 0) {
-            return true;
         }
 
         int srcNodeIndex = getIndexOfAddressInList(src, contacts);
         ArrayList<Integer> visited = tracePath(srcNodeIndex);
 
-        return false;
-    }
-
-    private ArrayList<Integer> tracePath(int srcIndex) {
-        ArrayList<Integer> clientVisited = new ArrayList<>();
-
-        for (int client : contactsNeighbours.get(srcIndex)) {
-            if (!clientVisited.contains(client)) {
-                clientVisited.add(client);
+        for (Node node : directNeighbours) {
+            if (!visited.contains(node.getAddress())) {
+                return true;
             }
         }
 
-        if (clientVisited.size() == contacts.size()) {
-            return clientVisited;
-        } else {
-            // Go through, whoever could transmit to us and if they have been visited
+        return false;
+    }
+
+    /**
+     * Traces all the clients that a packet has visited depending on from which address it was sent from
+     *
+     * @param srcIndex The source address index in contacts list
+     * @return An Arraylist of visited addresses
+     */
+    private ArrayList<Integer> tracePath(int srcIndex) {
+        ArrayList<Integer> clientsVisited = new ArrayList<>();
+        clientsVisited.add(contacts.get(srcIndex).getAddress());
+
+        for (int client : contactsNeighbours.get(srcIndex)) {
+            if (!clientsVisited.contains(client)) {
+                clientsVisited.add(client);
+            }
         }
 
-        return clientVisited;
+        while (!clientsVisited.contains(addr.getAddress()) && clientsVisited.size() < contacts.size() + 1) {
+            for (int visitedClient : clientsVisited) {
+                if (visitedClient == contacts.get(srcIndex).getAddress()) {
+                    continue;
+                }
+
+                for (int client : contactsNeighbours.get(getIndexOfAddressInList(visitedClient, contacts))) {
+                    if (!clientsVisited.contains(client)) {
+                        clientsVisited.add(client);
+                    }
+                }
+            }
+        }
+
+        return clientsVisited;
     }
 
     /**
      * Compares 2 lists to see whether they have differences in the nodes they connect to
-     * @param left A List of neighbours
+     *
+     * @param left  A List of neighbours
      * @param right Another list of neighbours
      * @return 0 - same, 1 - right, 2 - left, 3 - both
      */
