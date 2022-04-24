@@ -65,7 +65,8 @@ public class ForwardingV2 {
             }
         }
 
-        while (!clientsVisited.contains(addr.getAddress()) && clientsVisited.size() < contacts.size() + 1) {
+        int iterator = 0;
+        while (!clientsVisited.contains(addr.getAddress()) && clientsVisited.size() < contacts.size() + 1 && iterator < 4) {
             for (int visitedClient : clientsVisited) {
                 if (visitedClient == contacts.get(srcIndex).getAddress()) {
                     continue;
@@ -77,20 +78,11 @@ public class ForwardingV2 {
                     }
                 }
             }
+
+            iterator++;
         }
 
         return clientsVisited;
-    }
-
-    /**
-     * Compares 2 lists to see whether they have differences in the nodes they connect to
-     *
-     * @param left  A List of neighbours
-     * @param right Another list of neighbours
-     * @return 0 - same, 1 - right, 2 - left, 3 - both
-     */
-    private int compareNeighbourLists(ArrayList<Integer> left, ArrayList<Integer> right) {
-        return 0;
     }
 
     /**

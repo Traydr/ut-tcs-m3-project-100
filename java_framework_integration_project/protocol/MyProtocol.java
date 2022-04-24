@@ -39,6 +39,7 @@ public class MyProtocol {
     private ArrayList<Node> connectedClients;
     // Outer integer is source address, inner is sequence number, contains a list of packets that have not been ACK'd
     private HashMap<Integer, HashMap<Integer, byte[]>> unconfirmedPackets;
+    private ForwardingV2 forwarding;
     // GLOBAL VARIABLES END
 
     public MyProtocol(String server_ip, int server_port, int frequency) {
@@ -51,6 +52,7 @@ public class MyProtocol {
         myAddress = new Node(new Random().nextInt(14) + 1);
         connectedClients = new ArrayList<>();
         unconfirmedPackets = new HashMap<>();
+        forwarding = new ForwardingV2(myAddress);
 
         // Give the client the Queues to use
         new Client(server_ip, server_port, frequency, receivedQueue, sendingQueue);
@@ -130,6 +132,11 @@ public class MyProtocol {
      * @param dest Address of client to send to (0 - for broadcast)
      */
     private void sendNetwork(byte[] data, int dest) {
+        // Forwarding packets
+        byte[] forwardingData = forwarding.encode();
+        byte[] forwardingPkt = createDataPkt(myAddress.getAddress(), 0, PACKET_TYPE_FORWARDING, forwardingData.length, 0, forwardingData);
+        addPktToBuffer(forwardingPkt);
+
         // Data packets
         if (data.length > DATA_DATA_LENGTH) {
             int i = 0;
@@ -484,6 +491,11 @@ public class MyProtocol {
             // Checks if our address is already in use
             if (!checkIfAddressIsConnected(pck.getSource())) {
                 connectedClients.add(new Node(pck.getSource()));
+                if (msgType == MessageType.DATA_SHORT && pck.getDestination() == 0) {
+                    forwarding.addDirectNeighbour(new Node(pck.getSource()));
+                } else {
+                    forwarding.addContact(new Node(pck.getSource()));
+                }
             }
 
             // If we get a packet with the same address as the one we currently use, and we haven't sent the packet
@@ -497,6 +509,10 @@ public class MyProtocol {
                 return;
             }
 
+            if (forwarding.shouldClientRetransmit(pck.getSource(), pck.getDestination())) {
+                addPktToBuffer(pck.makePkt(msgType));
+            }
+
             // Parse DATA SHORT Packets
             if (msgType == MessageType.DATA_SHORT) {
                 if (pck.getDestination() == myAddress.getAddress() && unconfirmedPackets.containsKey(pck.getSource())) {
@@ -505,13 +521,14 @@ public class MyProtocol {
                 return;
             }
 
-
             if (pck.getPacketType() == PACKET_TYPE_SENDING) {
                 // If the packet isn't already in the hashmap, put it in
                 if (!checkIfPckInHash(pck)) {
                     putPckToReceived(pck);
                 }
                 addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
+            } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
+                forwarding.decode(pck.getData());
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 // If our packet history is not empty, check that the packet we just received isn't the same as
                 // the previous one we received. If it's the same ignore it.
@@ -530,7 +547,7 @@ public class MyProtocol {
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     // Adding packets for retransmission
-                    addPktToBuffer(tmp.makePkt(MessageType.DATA));
+                    //addPktToBuffer(tmp.makePkt(MessageType.DATA));
                     // Reconstructing the message
                     ArrayList<Byte> tmpArr = new ArrayList<>();
                     for (byte b : tmp.getData()) {
