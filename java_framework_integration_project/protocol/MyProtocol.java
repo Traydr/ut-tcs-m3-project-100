@@ -159,7 +159,7 @@ public class MyProtocol {
                 }
                 putPckToUnconfirmed(pckBytes, i, dest);
                 addPktToBuffer(pckBytes);
-                new Thread(new TimeOut(20, 3, this, 2, i));
+                new Thread(new TimeOut(20, 3, this, 2, i)).start();
 
                 if (unconfirmedPackets.containsKey(i)) {
                     return;
@@ -171,7 +171,7 @@ public class MyProtocol {
             byte[] pckBytes = createDataPkt(myAddress.getAddress(), dest, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
             putPckToUnconfirmed(pckBytes, 0, dest);
             addPktToBuffer(pckBytes);
-            new Thread(new TimeOut(20, 3, this, 2, 0));
+            new Thread(new TimeOut(20, 3, this, 2, 0)).start();
         }
         sendBuffer();
     }
@@ -206,9 +206,15 @@ public class MyProtocol {
                 }
                 // Attempt to resend
                 sendBuffer();
+                new Thread(new TimeOut(20, 10, this, timeoutInfo.get(0), timeoutInfo.get(1)));
                 break;
             case 3:
                 // This is going to be used for checking if our direct neighbours are still there
+                break;
+            case 4:
+                // Resending RTS so client know we are there
+                addPktToBuffer(createDataShortPkt(myAddress.getAddress(), 0, 0));
+                sendBuffer();
                 break;
             default:
                 // Do nothing
@@ -467,6 +473,9 @@ public class MyProtocol {
                     break;
                 case HELLO:
                     System.out.println("[CONNECTED]");
+                    addPktToBuffer(createDataShortPkt(myAddress.getAddress(), 0, 0));
+                    sendBuffer();
+                    new Thread(new TimeOut(5, 5, myProtocol, 4)).start();
                     break;
                 case SENDING:
                     System.out.print("-> [SENDING]");
