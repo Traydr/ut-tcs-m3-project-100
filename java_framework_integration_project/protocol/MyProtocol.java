@@ -188,6 +188,7 @@ public class MyProtocol {
                 sendBuffer();
                 break;
             case 2:
+                // This checks if a packet with a certain seqNr has been ACKd
                 synchronized (unconfirmedPackets) {
                     // Look through unconfirmed packets and resend
                     for (HashMap<Integer, byte[]> destMap : unconfirmedPackets.values()) {
@@ -198,6 +199,9 @@ public class MyProtocol {
                 }
                 // Attempt to resend
                 sendBuffer();
+                break;
+            case 3:
+                // This is going to be used for checking if our direct neighbours are still there
                 break;
             default:
                 // Do nothing
