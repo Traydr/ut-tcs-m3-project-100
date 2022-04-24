@@ -4,6 +4,7 @@ import client.Client;
 import client.Message;
 import client.MessageType;
 
+import javax.swing.*;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.util.*;
@@ -122,7 +123,13 @@ public class MyProtocol {
         return false;
     }
 
-    private void sendNetwork(byte[] data) {
+    /**
+     * Compile a packet from data bytes, put in buffer and attempt to send
+     *
+     * @param data Data bytes to send
+     * @param dest Address of client to send to (0 - for broadcast)
+     */
+    private void sendNetwork(byte[] data, int dest) {
         // Data packets
         if (data.length > DATA_DATA_LENGTH) {
             int i = 0;
@@ -137,14 +144,13 @@ public class MyProtocol {
                 }
 
                 // Create the packets and add to buffer
-                int destination = 0;
                 byte[] pckBytes;
                 if (pktArrayList == splitBytes.get(splitBytes.size() - 1)) {
-                    pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
+                    pckBytes = createDataPkt(myAddress.getAddress(), dest, PACKET_TYPE_DONE_SENDING, tmpPkt.length, i, tmpPkt);
                 } else {
-                    pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
+                    pckBytes = createDataPkt(myAddress.getAddress(), dest, PACKET_TYPE_SENDING, DATA_DATA_LENGTH, i, tmpPkt);
                 }
-                putPckToUnconfirmed(pckBytes, i, destination);
+                putPckToUnconfirmed(pckBytes, i, dest);
                 addPktToBuffer(pckBytes);
 
                 if (unconfirmedPackets.containsKey(i)) {
@@ -154,17 +160,41 @@ public class MyProtocol {
                 }
             }
         } else {
-            int destination = 0;
-            byte[] pckBytes = createDataPkt(myAddress.getAddress(), destination, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
-            putPckToUnconfirmed(pckBytes, 0, destination);
+            byte[] pckBytes = createDataPkt(myAddress.getAddress(), dest, PACKET_TYPE_DONE_SENDING, data.length, 0, data);
+            putPckToUnconfirmed(pckBytes, 0, dest);
             addPktToBuffer(pckBytes);
         }
         sendBuffer();
+        new Thread(new TimeOut(20, 3, this, 2));
     }
 
-    public void timeoutEntry(int type) {
-        if (type == 1) {
-            sendBuffer();
+    /**
+     * Sends a packet with a destination address of 0
+     *
+     * @param data Data bytes to send
+     */
+    private void sendNetwork(byte[] data) {
+        sendNetwork(data, 0);
+    }
+
+    public void timeoutEntry(ArrayList<Integer> timeoutInfo) {
+        switch (timeoutInfo.get(0)) {
+            case 1:
+                sendBuffer();
+                break;
+            case 2:
+                // Look through unconfirmed packets and resend
+                for (HashMap<Integer, byte[]> destMap : unconfirmedPackets.values()) {
+                    for (byte[] pck : destMap.values()) {
+                        addPktToBuffer(pck);
+                    }
+                }
+                // Attempt to resend
+                sendBuffer();
+                break;
+            default:
+                // Do nothing
+                break;
         }
     }
 
@@ -178,24 +208,27 @@ public class MyProtocol {
             return;
         }
 
-        // Time for buffer time out
-        int bufferTimeOffset = bufferQueue.size() * 2;
-        // Checks if the medium is free
-        if (mac.canWeSend(receivedQueue, bufferQueue)) {
-            if (connectedClients.size() == 0) {
-                connectedClients.add(myAddress);
-            }
+        int bufferTimeOffset;
+        synchronized (bufferQueue) {
+            // Time for buffer time out
+            bufferTimeOffset = bufferQueue.size() * 2;
+            // Checks if the medium is free
+            if (mac.canWeSend(receivedQueue, bufferQueue)) {
+                if (connectedClients.size() == 0) {
+                    connectedClients.add(myAddress);
+                }
 
-            // Send a rts before sending the buffer
-            sendRts(myAddress.getAddress(), 0, 0);
-            mac.haveSentPacket();
-            while (bufferQueue.size() > 0) {
-                sendPacket(bufferQueue.remove());
+                // Send a rts before sending the buffer
+                sendRts(myAddress.getAddress(), 0, 0);
+                mac.haveSentPacket();
+                while (bufferQueue.size() > 0) {
+                    sendPacket(bufferQueue.remove());
+                }
+            } else if (bufferQueue.size() == 0) {
+                printErr("Buffer is already empty");
+            } else {
+                printErr("Medium currently occupied, please [send] later");
             }
-        } else if (bufferQueue.size() == 0) {
-            printErr("Buffer is already empty");
-        } else {
-            printErr("Medium currently occupied, please [send] later");
         }
         // Start the buffer timeout
         bufferTimeOut = new TimeOut(bufferTimeOffset, 2, this, 0);
@@ -209,10 +242,12 @@ public class MyProtocol {
      * @param pkt Packet
      */
     protected void addPktToBuffer(byte[] pkt) {
-        try {
-            bufferQueue.put(pkt);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        synchronized (bufferQueue) {
+            try {
+                bufferQueue.put(pkt);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
