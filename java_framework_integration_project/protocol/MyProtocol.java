@@ -536,6 +536,9 @@ public class MyProtocol {
                 addPktToBuffer(createDataShortPkt(myAddress.getAddress(), pck.getSource(), pck.getSeqNr()));
             } else if (pck.getPacketType() == PACKET_TYPE_FORWARDING) {
                 forwarding.decode(pck.getData());
+                if (forwarding.shouldClientRetransmit(pck.getSource(), pck.getDestination())) {
+                    addPktToBuffer(pck.makePkt(msgType));
+                }
             } else if (pck.getPacketType() == PACKET_TYPE_DONE_SENDING) {
                 // If our packet history is not empty, check that the packet we just received isn't the same as
                 // the previous one we received. If it's the same ignore it.

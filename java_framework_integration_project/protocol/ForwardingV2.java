@@ -193,8 +193,8 @@ public class ForwardingV2 {
 
         for (Node contact : contacts) {
             ArrayList<Integer> neighbours = contactsNeighbours.get(getIndexOfAddressInList(contact.getAddress(), contacts));
-            output.append("\nContact Address: ").append(contact.getAddress()).append("\nNeighbour Nodes:");
-            neighbours.forEach((n) -> output.append("\n\t").append(n));
+            output.append("\n\tContact Address: ").append(contact.getAddress()).append("\n\tNeighbour Nodes:");
+            neighbours.forEach((n) -> output.append("\n\t\t").append(n));
         }
 
         return output.toString();
