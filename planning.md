@@ -20,7 +20,7 @@ classDiagram
     }
     
     class MediumAccessControl{
-        -bool sentPacket
+        -boolean sentPacket
         -MessageType previousMediumState
         
         +canWeSend()
@@ -57,9 +57,22 @@ classDiagram
     +run()
     }
     
+    class ForwardingV2{
+    -boolean shouldClientRetransmit()
+    -boolean boolean isAddrInArrayList()
+    -ArrayList<Integer> tracePath()
+    +addDirectNeighbour()
+    +addContact()
+    +getIndexOfAddressInList()
+    +decode()
+    +encode()
+    +toString()    
+    }
+    
     MyProtocol *-- MediumAccessControl
     MyProtocol *-- TextSplit
     MyProtocol *-- Forwarding
+    MyProtocol *-- ForwardingV2
     MyProtocol *-- TimeOut
     MyProtocol <|-- receiveThread
     Forwarding *-- Node
