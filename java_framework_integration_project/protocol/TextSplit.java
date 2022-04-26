@@ -8,6 +8,7 @@ public class TextSplit {
 
     /**
      * Converts a String to a byte array
+     *
      * @param msg String message
      * @return Byte array of UTF-8 encoding of msg
      */
@@ -17,7 +18,8 @@ public class TextSplit {
 
     /**
      * Converts a byte array to Arraylists of a certain size
-     * @param msg byte array to convert
+     *
+     * @param msg  byte array to convert
      * @param size size of the arraylists
      * @return Arraylist of Arraylist's of bytes
      */
@@ -44,7 +46,8 @@ public class TextSplit {
 
     /**
      * Converts an arraylist of arraylist's of bytes into a string message
-     * @param msg Arraylist of Arraylist's of bytes
+     *
+     * @param msg            Arraylist of Arraylist's of bytes
      * @param lastMessageLen The length of the message in the last Arraylist
      * @return A string message
      */
