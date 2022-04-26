@@ -243,7 +243,7 @@ public class MyProtocol {
                 }
 
                 // Send a rts before sending the buffer
-                sendRts(myAddress.getAddress(), 0, 0);
+                sendRts();
                 mac.haveSentPacket();
                 while (bufferQueue.size() > 0) {
                     sendPacket(bufferQueue.remove());
@@ -329,15 +329,11 @@ public class MyProtocol {
 
     /**
      * Sends an RTS packet to the network
-     *
-     * @param src   Source address
-     * @param dst   Destination address
-     * @param ackNr Acknowledgement number
      */
-    private void sendRts(int src, int dst, int ackNr) {
+    private void sendRts() {
         // Create a byte buffer and send the data short
         ByteBuffer sending = ByteBuffer.allocate(DATA_SHORT_PACKET_LENGTH);
-        sending.put(createDataShortPkt(src, dst, ackNr));
+        sending.put(createDataShortPkt(myAddress.getAddress(), 0, 0));
         try {
             sendingQueue.put(new Message(MessageType.DATA_SHORT, sending));
         } catch (InterruptedException e) {
@@ -553,7 +549,6 @@ public class MyProtocol {
 
                 // Put packet to hashmap to be decoded
                 putPckToReceived(pck);
-                String reconstructedMessage = "";
                 ArrayList<ArrayList<Byte>> msgs = new ArrayList<>();
                 for (Packet tmp : receivedPackets.get(pck.getSource()).values()) {
                     // Adding packets for retransmission
@@ -567,7 +562,7 @@ public class MyProtocol {
                     }
                     msgs.add(tmpArr);
                 }
-                reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
+                String reconstructedMessage = TextSplit.arrayOfArrayBackToText(msgs, pck.getDataLen());
                 reconstructedMessage = "\n[FROM] " + pck.getSource() + ":\n\t" + reconstructedMessage;
                 System.out.println(reconstructedMessage);
 
