@@ -110,16 +110,12 @@ public class MyProtocol {
             case "send":
                 sendBuffer();
                 break;
-            case "table":
-                printMsg(forwarding.toString());
-                break;
             case "help":
                 printMsg("Commands:" +
                         "\n\tchat - Send messages to others" +
                         "\n\tlist - Show participants in the network" +
                         "\n\thelp - Show this help message" +
                         "\n\tsend - Sends all packets currently in the buffer" +
-                        "\n\ttable - Prints forwarding table" +
                         "\n\tquit - Quits client");
                 break;
             default:
